@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -16,6 +17,7 @@ import Funding from "./pages/Funding";
 import Reports from "./pages/Reports";
 import Sites from "./pages/Sites";
 import Users from "./pages/Users";
+import SetupRole from "./pages/SetupRole";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,9 +32,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/setup-role" element={<SetupRole />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/expenses" element={<Expenses />} />
-            <Route path="/expenses/new" element={<NewExpense />} />
+            <Route path="/expenses/new" element={
+              <ProtectedRoute allowedRoles={['boss', 'admin']}>
+                <NewExpense />
+              </ProtectedRoute>
+            } />
             <Route path="/approvals" element={<Approvals />} />
             <Route path="/qs-queue" element={<QSQueue />} />
             <Route path="/funding" element={<Funding />} />

@@ -4,24 +4,24 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from '@/components/ui/table';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ExpenseRecord, Site, ExpenseStatus } from '@/lib/types';
-import { Plus, Search, Filter, Eye, Download, Receipt } from 'lucide-react';
+import { expenseApi, siteApi } from '@/lib/apiClient';
+import { ExpenseRecord, Site } from '@/lib/types';
+import { Plus, Search, Filter, Eye, Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 
@@ -35,7 +35,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default function Expenses() {
-  const { isRole } = useAuth();
+  const { isRole, userRole } = useAuth();
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,41 +43,26 @@ export default function Expenses() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [siteFilter, setSiteFilter] = useState<string>('all');
 
+  // Debug: Log user role
+  console.log('Expenses page - Current userRole:', userRole);
+  console.log('Expenses page - isRole boss/admin check:', isRole(['boss', 'admin']));
+
   useEffect(() => {
     async function fetchData() {
       try {
-        const { data: sitesData } = await supabase
-          .from('sites')
-          .select('*')
-          .eq('active', true);
+        const sitesData = await siteApi.getAll(true);
+        setSites(sitesData);
 
-        if (sitesData) {
-          setSites(sitesData as Site[]);
-        }
-
-        let query = supabase
-          .from('expense_records')
-          .select(`
-            *,
-            managing_directors:md_id(name),
-            sites:site_id(name, code),
-            bank_accounts:from_bank_account_id(name, bank_name)
-          `)
-          .order('created_at', { ascending: false });
-
+        const params: any = {};
         if (statusFilter !== 'all') {
-          query = query.eq('status', statusFilter as any);
+          params.status = statusFilter;
         }
-
         if (siteFilter !== 'all') {
-          query = query.eq('site_id', siteFilter);
+          params.site_id = siteFilter;
         }
 
-        const { data: expensesData } = await query;
-
-        if (expensesData) {
-          setExpenses(expensesData as unknown as ExpenseRecord[]);
-        }
+        const expensesData = await expenseApi.getAll(params);
+        setExpenses(expensesData);
       } catch (error) {
         console.error('Error fetching expenses:', error);
       } finally {

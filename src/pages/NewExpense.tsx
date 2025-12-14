@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { bankApi, mdApi, siteApi, expenseApi } from '@/lib/apiClient';
 import { BankAccount, ManagingDirector, Site } from '@/lib/types';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft, Upload } from 'lucide-react';
@@ -32,7 +32,7 @@ const expenseSchema = z.object({
 
 export default function NewExpense() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isRole } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(true);
   
@@ -55,15 +55,15 @@ export default function NewExpense() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [banksRes, mdsRes, sitesRes] = await Promise.all([
-          supabase.from('bank_accounts').select('*').eq('active', true),
-          supabase.from('managing_directors').select('*').eq('active', true),
-          supabase.from('sites').select('*').eq('active', true),
+        const [banks, mds, sitesData] = await Promise.all([
+          bankApi.getAll(),
+          mdApi.getAll(),
+          siteApi.getAll(true),
         ]);
 
-        if (banksRes.data) setBankAccounts(banksRes.data as BankAccount[]);
-        if (mdsRes.data) setManagingDirectors(mdsRes.data as ManagingDirector[]);
-        if (sitesRes.data) setSites(sitesRes.data as Site[]);
+        setBankAccounts(banks);
+        setManagingDirectors(mds);
+        setSites(sitesData);
       } catch (error) {
         console.error('Error fetching form data:', error);
         toast.error('Failed to load form data');
@@ -89,7 +89,7 @@ export default function NewExpense() {
         reference: formData.reference || undefined,
       });
 
-      const { error } = await supabase.from('expense_records').insert([{
+      await expenseApi.create({
         to_name: validatedData.to_name,
         purpose: validatedData.purpose,
         amount: validatedData.amount,
@@ -98,12 +98,8 @@ export default function NewExpense() {
         md_id: validatedData.md_id || null,
         payment_method: validatedData.payment_method,
         reference: validatedData.reference || null,
-        entered_by_user_id: user?.id,
         entry_date: new Date().toISOString().split('T')[0],
-        status: 'pending' as const,
-      }]);
-
-      if (error) throw error;
+      });
 
       toast.success('Expense record created successfully');
       navigate('/expenses');

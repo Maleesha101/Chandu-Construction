@@ -1,26 +1,26 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Receipt,
-  CheckCircle,
-  FileCheck,
-  Wallet,
-  BarChart3,
-  Building2,
-  Users,
-  Settings,
-  LogOut,
-  Bell,
-  ChevronDown,
+    LayoutDashboard,
+    Receipt,
+    CheckCircle,
+    FileCheck,
+    Wallet,
+    BarChart3,
+    Building2,
+    Users,
+    Settings,
+    LogOut,
+    Bell,
+    ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 const navigation = [
@@ -51,7 +51,7 @@ export function Sidebar() {
             <Wallet className="h-5 w-5 text-sidebar-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-sidebar-foreground">CashTrack</h1>
+            <h1 className="text-lg font-semibold text-sidebar-foreground">CHANDU</h1>
             <p className="text-xs text-sidebar-foreground/60">Construction Finance</p>
           </div>
         </div>

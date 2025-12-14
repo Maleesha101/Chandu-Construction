@@ -21,7 +21,7 @@ const Index = () => {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-        <p className="mt-4 text-muted-foreground">Loading CashTrack...</p>
+        <p className="mt-4 text-muted-foreground">Loading CHANDU...</p>
       </div>
     </div>
   );

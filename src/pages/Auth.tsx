@@ -118,7 +118,7 @@ export default function Auth() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-foreground/20">
               <Wallet className="h-6 w-6" />
             </div>
-            <span className="text-xl font-semibold">CashTrack</span>
+            <span className="text-xl font-semibold">CHANDU</span>
           </div>
           
           <div className="space-y-6">
@@ -161,7 +161,7 @@ export default function Auth() {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
                 <Wallet className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="text-xl font-semibold">CashTrack</span>
+              <span className="text-xl font-semibold">CHANDU</span>
             </div>
             <h1 className="text-2xl font-semibold text-foreground">
               {isLogin ? 'Welcome back' : 'Create your account'}

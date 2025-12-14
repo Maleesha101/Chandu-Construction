@@ -6,17 +6,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpenseRecord, DashboardStats, BankAccount } from '@/lib/types';
-import {
-  Wallet,
-  Clock,
-  AlertCircle,
-  TrendingUp,
-  CheckCircle,
-  XCircle,
-  ArrowRight,
-  Plus,
-  Receipt,
-} from 'lucide-react';
+import { Wallet, Clock, AlertCircle, TrendingUp, ArrowRight, Plus, Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -128,6 +118,10 @@ export default function Dashboard() {
         return 'Dashboard';
     }
   };
+
+  // Debug: Log user role
+  console.log('Current userRole:', userRole);
+  console.log('isRole boss/admin check:', isRole(['boss', 'admin']));
 
   return (
     <DashboardLayout title={getRoleDashboardTitle()} description="Overview of your construction finance operations">
