@@ -51,7 +51,7 @@ export default function NewExpense() {
   const [managingDirectors, setManagingDirectors] = useState<ManagingDirector[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [transactionUsers, setTransactionUsers] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
-  const [beneficiaries, setBeneficiaries] = useState<string[]>(['Supplier', 'Contractor', 'Worker', 'Vendor']);
+  const [beneficiaries, setBeneficiaries] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
   
   const [formData, setFormData] = useState({
     transaction_date: new Date().toISOString().split('T')[0],
@@ -66,10 +66,6 @@ export default function NewExpense() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // Dialog states for adding new beneficiaries
-  const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
-  const [newBeneficiary, setNewBeneficiary] = useState('');
-  
   // Dialog state for adding new supervisor
   const [showAddSupervisorDialog, setShowAddSupervisorDialog] = useState(false);
   const [addingSupervisor, setAddingSupervisor] = useState(false);
@@ -81,18 +77,31 @@ export default function NewExpense() {
     role: 'md' as 'boss' | 'admin' | 'md',
   });
 
+  // Dialog state for adding new beneficiary
+  const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
+  const [addingBeneficiary, setAddingBeneficiary] = useState(false);
+  const [newBeneficiaryData, setNewBeneficiaryData] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    phone: '',
+    role: 'boss' as 'boss' | 'admin',
+  });
+
   useEffect(() => {
     async function fetchData() {
       try {
-        const [banks, sitesData, usersData] = await Promise.all([
+        const [banks, sitesData, usersData, supervisorsData] = await Promise.all([
           bankApi.getAll(),
           siteApi.getAll(true),
           userApi.getTransactionUsers(),
+          userApi.getSupervisors(),
         ]);
 
         setBankAccounts(banks);
         setSites(sitesData);
         setTransactionUsers(usersData);
+        setBeneficiaries(supervisorsData);
       } catch (error) {
         console.error('Error fetching form data:', error);
         toast.error('Failed to load form data');
@@ -110,6 +119,15 @@ export default function NewExpense() {
       setTransactionUsers(usersData);
     } catch (error) {
       console.error('Error fetching transaction users:', error);
+    }
+  };
+
+  const fetchBeneficiaries = async () => {
+    try {
+      const supervisorsData = await userApi.getSupervisors();
+      setBeneficiaries(supervisorsData);
+    } catch (error) {
+      console.error('Error fetching beneficiaries:', error);
     }
   };
 
@@ -150,13 +168,40 @@ export default function NewExpense() {
     }
   };
 
-  const handleAddBeneficiary = () => {
-    if (newBeneficiary.trim()) {
-      setBeneficiaries([...beneficiaries, newBeneficiary.trim()]);
-      setFormData({ ...formData, beneficiary: newBeneficiary.trim() });
-      setNewBeneficiary('');
-      setShowAddBeneficiaryDialog(false);
+  const handleAddBeneficiary = async () => {
+    if (!newBeneficiaryData.full_name.trim() || !newBeneficiaryData.email.trim() || !newBeneficiaryData.password.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    if (newBeneficiaryData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setAddingBeneficiary(true);
+    try {
+      await userApi.createUser({
+        email: newBeneficiaryData.email.trim(),
+        password: newBeneficiaryData.password,
+        full_name: newBeneficiaryData.full_name.trim(),
+        phone: newBeneficiaryData.phone.trim() || undefined,
+        role: newBeneficiaryData.role,
+      });
+
       toast.success('Beneficiary added successfully');
+      setShowAddBeneficiaryDialog(false);
+      setNewBeneficiaryData({ full_name: '', email: '', password: '', phone: '', role: 'boss' });
+      
+      // Refresh beneficiaries list
+      await fetchBeneficiaries();
+      
+      // Auto-select the newly added beneficiary
+      setFormData({ ...formData, beneficiary: newBeneficiaryData.full_name.trim() });
+    } catch (error: any) {
+      console.error('Error adding beneficiary:', error);
+      toast.error(error.message || 'Failed to add beneficiary');
+    } finally {
+      setAddingBeneficiary(false);
     }
   };
 
@@ -184,9 +229,8 @@ export default function NewExpense() {
         payment_method: validatedData.payment_source === 'petty_cash' ? 'cash' : 'bank_transfer',
         reference: validatedData.reference || null,
         entry_date: validatedData.transaction_date,
+        from_person_name: validatedData.from_person,
         // status is automatically set to 'pending' in the backend
-        // Additional fields that may need to be stored in backend
-        // from_person: validatedData.from_person,
       });
 
       toast.success('Expense submitted for approval successfully');
@@ -356,23 +400,30 @@ export default function NewExpense() {
                     <SelectValue placeholder="Select beneficiary" />
                   </SelectTrigger>
                   <SelectContent>
-                    {beneficiaries.map((beneficiary) => (
-                      <SelectItem key={beneficiary} value={beneficiary}>
-                        {beneficiary}
+                    {beneficiaries.map((supervisor) => (
+                      <SelectItem key={supervisor.id} value={supervisor.full_name}>
+                        {supervisor.full_name}
                       </SelectItem>
                     ))}
+                    {beneficiaries.length === 0 && (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No supervisors available
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowAddBeneficiaryDialog(true)}
-                  title="Add new beneficiary"
-                  disabled={loading}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                {isRole(['boss', 'admin']) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowAddBeneficiaryDialog(true)}
+                    title="Add new beneficiary"
+                    disabled={loading}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               {errors.beneficiary && (
                 <p className="text-xs text-destructive">{errors.beneficiary}</p>
@@ -458,26 +509,89 @@ export default function NewExpense() {
           <DialogHeader>
             <DialogTitle>Add New Beneficiary</DialogTitle>
             <DialogDescription>
-              Add a new beneficiary to receive payments.
+              Create a new boss or admin user account as beneficiary.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="new_beneficiary">Beneficiary Name</Label>
+              <Label htmlFor="beneficiary_name">Full Name *</Label>
               <Input
-                id="new_beneficiary"
-                placeholder="Enter beneficiary name"
-                value={newBeneficiary}
-                onChange={(e) => setNewBeneficiary(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddBeneficiary()}
+                id="beneficiary_name"
+                placeholder="Enter full name"
+                value={newBeneficiaryData.full_name}
+                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, full_name: e.target.value })}
+                disabled={addingBeneficiary}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="beneficiary_email">Email *</Label>
+              <Input
+                id="beneficiary_email"
+                type="email"
+                placeholder="Enter email address"
+                value={newBeneficiaryData.email}
+                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, email: e.target.value })}
+                disabled={addingBeneficiary}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="beneficiary_role">Role *</Label>
+              <Select
+                value={newBeneficiaryData.role}
+                onValueChange={(value: 'boss' | 'admin') => 
+                  setNewBeneficiaryData({ ...newBeneficiaryData, role: value })
+                }
+                disabled={addingBeneficiary}
+              >
+                <SelectTrigger id="beneficiary_role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="boss">Owner</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="beneficiary_password">Password *</Label>
+              <Input
+                id="beneficiary_password"
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={newBeneficiaryData.password}
+                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, password: e.target.value })}
+                disabled={addingBeneficiary}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="beneficiary_phone">Phone (Optional)</Label>
+              <Input
+                id="beneficiary_phone"
+                placeholder="Enter phone number"
+                value={newBeneficiaryData.phone}
+                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, phone: e.target.value })}
+                disabled={addingBeneficiary}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowAddBeneficiaryDialog(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                setShowAddBeneficiaryDialog(false);
+                setNewBeneficiaryData({ full_name: '', email: '', password: '', phone: '', role: 'boss' });
+              }}
+              disabled={addingBeneficiary}
+            >
               Cancel
             </Button>
-            <Button type="button" onClick={handleAddBeneficiary}>
+            <Button 
+              type="button" 
+              onClick={handleAddBeneficiary}
+              disabled={addingBeneficiary}
+            >
+              {addingBeneficiary && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add Beneficiary
             </Button>
           </DialogFooter>

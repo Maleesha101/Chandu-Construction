@@ -66,13 +66,20 @@ export default function SupervisorDetails() {
 
         setUser(foundUser);
 
-        // Filter expenses where this user is the "from_person"
+        console.log('All expenses:', allExpenses.length);
+        console.log('Looking for expenses where from_person_name ===', foundUser.full_name);
+        console.log('Sample expense:', allExpenses[0]);
+
+        // Filter expenses where this user is the "from_person" (transaction made by)
         const userExpenses = allExpenses.filter(
-          (expense: ExpenseRecord) => 
-            expense.entered_by_user_id === userId || 
-            expense.entered_by_name === foundUser.full_name
+          (expense: ExpenseRecord) => {
+            const fromPersonName = expense.from_person_name;
+            console.log('Expense from_person_name:', fromPersonName, 'matches:', fromPersonName === foundUser.full_name);
+            return fromPersonName === foundUser.full_name;
+          }
         );
         
+        console.log('Filtered expenses:', userExpenses.length);
         setExpenses(userExpenses);
       } catch (error) {
         console.error('Error fetching supervisor details:', error);

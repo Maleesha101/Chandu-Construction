@@ -75,6 +75,7 @@ export interface ExpenseRecord {
   updated_at: string;
   // Joined fields
   entered_by_name?: string;
+  from_person_name?: string;
   site_name?: string;
   site_code?: string;
   bank_name?: string;

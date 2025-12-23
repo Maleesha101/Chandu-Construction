@@ -14,6 +14,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
+            e.qs_notes as from_person_name,
             s.name as site_name,
             s.code as site_code,
             b.name as bank_name,
@@ -78,6 +79,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
+            e.qs_notes as from_person_name,
             s.name as site_name,
             b.name as bank_name,
             md.name as md_name
@@ -139,7 +141,8 @@ router.post('/',
         md_id,
         payment_method,
         reference,
-        entry_date
+        entry_date,
+        from_person_name
       } = req.body;
 
       const user = req.user!;
@@ -175,8 +178,8 @@ router.post('/',
         const result = await query(
           `INSERT INTO expense_records 
           (to_name, purpose, amount, site_id, from_bank_account_id, md_id, 
-            payment_method, reference, entry_date, entered_by_user_id, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
+            payment_method, reference, entry_date, entered_by_user_id, qs_notes, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
            RETURNING *`,
           [
             to_name,
@@ -188,7 +191,8 @@ router.post('/',
             payment_method || 'cash',
             reference || null,
             entry_date || new Date(),
-            user.userId
+            user.userId,
+            from_person_name || null
           ]
         );
 
