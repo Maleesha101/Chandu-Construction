@@ -20,9 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Site } from '@/lib/types';
+import { siteApi } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { Plus, Building2, Loader2, MapPin, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -47,14 +47,8 @@ export default function Sites() {
 
   const fetchSites = async () => {
     try {
-      const { data } = await supabase
-        .from('sites')
-        .select('*')
-        .order('name');
-
-      if (data) {
-        setSites(data as Site[]);
-      }
+      const data = await siteApi.getAll();
+      setSites(data || []);
     } catch (error) {
       console.error('Error fetching sites:', error);
       toast.error('Failed to load sites');
@@ -72,13 +66,11 @@ export default function Sites() {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from('sites').insert({
+      await siteApi.create({
         name: formData.name.trim(),
         location: formData.location.trim() || null,
         code: formData.code.trim().toUpperCase() || null,
       });
-
-      if (error) throw error;
 
       toast.success('Site created successfully');
       setDialogOpen(false);
@@ -86,7 +78,7 @@ export default function Sites() {
       fetchSites();
     } catch (error: any) {
       console.error('Error creating site:', error);
-      if (error.code === '23505') {
+      if (error.message?.includes('already exists') || error.message?.includes('23505')) {
         toast.error('A site with this code already exists');
       } else {
         toast.error('Failed to create site');
@@ -98,12 +90,7 @@ export default function Sites() {
 
   const toggleActive = async (site: Site) => {
     try {
-      const { error } = await supabase
-        .from('sites')
-        .update({ active: !site.active })
-        .eq('id', site.id);
-
-      if (error) throw error;
+      await siteApi.update(site.id, { active: !site.active });
 
       toast.success(`Site ${site.active ? 'deactivated' : 'activated'}`);
       fetchSites();

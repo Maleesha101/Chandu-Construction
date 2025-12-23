@@ -3,9 +3,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpenseRecord, DashboardStats, BankAccount } from '@/lib/types';
+import { expenseApi, bankApi } from '@/lib/apiClient';
 import { Wallet, Clock, AlertCircle, TrendingUp, ArrowRight, Plus, Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -37,61 +37,43 @@ export default function Dashboard() {
     async function fetchDashboardData() {
       try {
         // Fetch bank accounts
-        const { data: banks } = await supabase
-          .from('bank_accounts')
-          .select('*')
-          .eq('active', true);
-
+        const banks = await bankApi.getAll();
         if (banks) {
-          setBankAccounts(banks as BankAccount[]);
+          setBankAccounts(banks);
           const totalBalance = banks.reduce((sum, bank) => sum + Number(bank.balance), 0);
           setStats((prev) => ({ ...prev, totalBankBalance: totalBalance }));
         }
 
-        // Fetch expense counts
-        const { count: pendingCount } = await supabase
-          .from('expense_records')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
+        // Fetch all expenses to calculate stats
+        const allExpenses = await expenseApi.getAll();
+        
+        // Count pending expenses
+        const pendingCount = allExpenses.filter((exp: any) => exp.status === 'pending').length;
+        const wdPendingCount = allExpenses.filter((exp: any) => exp.status === 'wd_pending').length;
 
-        const { count: wdPendingCount } = await supabase
-          .from('expense_records')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'wd_pending');
-
-        // Fetch recent expenses
-        const { data: expenses } = await supabase
-          .from('expense_records')
-          .select(`
-            *,
-            managing_directors:md_id(name),
-            sites:site_id(name),
-            bank_accounts:from_bank_account_id(name)
-          `)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (expenses) {
-          setRecentExpenses(expenses as unknown as ExpenseRecord[]);
-        }
+        // Get recent expenses (first 5)
+        const recentExpenses = allExpenses.slice(0, 5);
+        setRecentExpenses(recentExpenses);
 
         // Calculate weekly spend
         const weekStart = new Date();
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         weekStart.setHours(0, 0, 0, 0);
 
-        const { data: weeklyExpenses } = await supabase
-          .from('expense_records')
-          .select('amount')
-          .in('status', ['approved', 'wd_approved'])
-          .gte('created_at', weekStart.toISOString());
-
-        const weeklySpend = weeklyExpenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
+        const weeklySpend = allExpenses
+          .filter((exp: any) => {
+            const expDate = new Date(exp.created_at);
+            return (
+              (exp.status === 'approved' || exp.status === 'wd_approved') &&
+              expDate >= weekStart
+            );
+          })
+          .reduce((sum: number, exp: any) => sum + Number(exp.amount), 0);
 
         setStats((prev) => ({
           ...prev,
-          pendingCount: pendingCount || 0,
-          wdPendingCount: wdPendingCount || 0,
+          pendingCount,
+          wdPendingCount,
           weeklySpend,
         }));
       } catch (error) {
@@ -257,7 +239,7 @@ export default function Dashboard() {
                           {expense.purpose}
                         </p>
                         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          <span>{(expense as any).sites?.name || 'No site'}</span>
+                          <span>{(expense as any).site_name || 'No site'}</span>
                           <span>•</span>
                           <span>{formatDistanceToNow(new Date(expense.created_at), { addSuffix: true })}</span>
                         </div>
@@ -267,7 +249,7 @@ export default function Dashboard() {
                           {formatCurrency(Number(expense.amount))}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {(expense as any).bank_accounts?.name || 'Cash'}
+                          {(expense as any).bank_name || 'Cash'}
                         </p>
                       </div>
                     </div>

@@ -137,7 +137,7 @@ export default function NewExpense() {
         payment_method: validatedData.payment_source === 'petty_cash' ? 'cash' : 'bank_transfer',
         reference: validatedData.reference || null,
         entry_date: validatedData.transaction_date,
-        approval_status: 'pending', // Set to pending for approval workflow
+        // status is automatically set to 'pending' in the backend
         // Additional fields that may need to be stored in backend
         // from_person: validatedData.from_person,
       });

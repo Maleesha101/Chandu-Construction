@@ -12,9 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpenseRecord } from '@/lib/types';
+import { expenseApi } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import {
   CheckCircle,
@@ -54,20 +54,8 @@ export default function Approvals() {
 
   const fetchPendingExpenses = async () => {
     try {
-      const { data } = await supabase
-        .from('expense_records')
-        .select(`
-          *,
-          managing_directors:md_id(name),
-          sites:site_id(name, code),
-          bank_accounts:from_bank_account_id(name, bank_name)
-        `)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (data) {
-        setExpenses(data as unknown as ExpenseRecord[]);
-      }
+      const data = await expenseApi.getAll({ status: 'pending' });
+      setExpenses(data || []);
     } catch (error) {
       console.error('Error fetching expenses:', error);
       toast.error('Failed to load pending approvals');
@@ -81,33 +69,8 @@ export default function Approvals() {
     setActionLoading(expense.id);
 
     try {
-      // Update expense status
-      const { error: updateError } = await supabase
-        .from('expense_records')
-        .update({ status: 'approved' })
-        .eq('id', expense.id);
-
-      if (updateError) throw updateError;
-
-      // Create approval record
-      const { error: approvalError } = await supabase
-        .from('approvals')
-        .insert({
-          record_id: expense.id,
-          approver_user_id: user.id,
-          action: 'approved',
-        });
-
-      if (approvalError) throw approvalError;
-
-      // Create ledger entry
-      await supabase.from('ledger_entries').insert({
-        record_id: expense.id,
-        account_code: 'EXP',
-        description: `Expense: ${expense.purpose}`,
-        debit: expense.amount,
-        credit: 0,
-      });
+      // Update expense status via API
+      await expenseApi.updateStatus(expense.id, 'approved');
 
       toast.success('Expense approved successfully');
       setExpenses(expenses.filter((e) => e.id !== expense.id));
@@ -124,23 +87,14 @@ export default function Approvals() {
     setActionLoading(selectedExpense.id);
 
     try {
-      const { error: updateError } = await supabase
-        .from('expense_records')
-        .update({ status: 'rejected' })
-        .eq('id', selectedExpense.id);
-
-      if (updateError) throw updateError;
-
-      await supabase.from('approvals').insert({
-        record_id: selectedExpense.id,
-        approver_user_id: user.id,
-        action: 'rejected',
-        note: actionNote,
-      });
+      // Update expense status via API
+      await expenseApi.updateStatus(selectedExpense.id, 'rejected', actionNote);
 
       toast.success('Expense rejected');
       setExpenses(expenses.filter((e) => e.id !== selectedExpense.id));
-      closeDialog();
+      setSelectedExpense(null);
+      setDialogAction(null);
+      setActionNote('');
     } catch (error) {
       console.error('Error rejecting expense:', error);
       toast.error('Failed to reject expense');
@@ -154,22 +108,8 @@ export default function Approvals() {
     setActionLoading(selectedExpense.id);
 
     try {
-      const { error: updateError } = await supabase
-        .from('expense_records')
-        .update({
-          status: 'wd_pending',
-          wd_reason: actionNote,
-        })
-        .eq('id', selectedExpense.id);
-
-      if (updateError) throw updateError;
-
-      await supabase.from('approvals').insert({
-        record_id: selectedExpense.id,
-        approver_user_id: user.id,
-        action: 'wd_requested',
-        note: actionNote,
-      });
+      // Update expense status to wd_pending via API
+      await expenseApi.updateStatus(selectedExpense.id, 'wd_pending', actionNote);
 
       toast.success('Expense sent to QS for review');
       setExpenses(expenses.filter((e) => e.id !== selectedExpense.id));
@@ -258,9 +198,9 @@ export default function Approvals() {
                     </div>
                     
                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                      <span>Site: {(expense as any).sites?.name || '-'}</span>
-                      <span>MD: {(expense as any).managing_directors?.name || '-'}</span>
-                      <span>Bank: {(expense as any).bank_accounts?.name || 'Cash'}</span>
+                      <span>Site: {(expense as any).site_name || '-'}</span>
+                      <span>MD: {(expense as any).md_name || '-'}</span>
+                      <span>Bank: {(expense as any).bank_name || 'Cash'}</span>
                       <span>Date: {format(new Date(expense.entry_date), 'MMM d, yyyy')}</span>
                     </div>
                   </div>

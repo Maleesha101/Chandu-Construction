@@ -4,23 +4,23 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExpenseRecord } from '@/lib/types';
+import { expenseApi } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import {
-  CheckCircle,
-  XCircle,
-  FileText,
-  Loader2,
-  AlertCircle,
+    CheckCircle,
+    XCircle,
+    FileText,
+    Loader2,
+    AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -49,20 +49,8 @@ export default function QSQueue() {
 
   const fetchWDPendingExpenses = async () => {
     try {
-      const { data } = await supabase
-        .from('expense_records')
-        .select(`
-          *,
-          managing_directors:md_id(name),
-          sites:site_id(name, code),
-          bank_accounts:from_bank_account_id(name, bank_name)
-        `)
-        .eq('status', 'wd_pending')
-        .order('created_at', { ascending: false });
-
-      if (data) {
-        setExpenses(data as unknown as ExpenseRecord[]);
-      }
+      const data = await expenseApi.getAll({ status: 'wd_pending' });
+      setExpenses(data || []);
     } catch (error) {
       console.error('Error fetching WD expenses:', error);
       toast.error('Failed to load QS queue');
@@ -78,33 +66,8 @@ export default function QSQueue() {
     try {
       const newStatus = dialogAction === 'approve' ? 'wd_approved' : 'wd_rejected';
 
-      const { error: updateError } = await supabase
-        .from('expense_records')
-        .update({
-          status: newStatus,
-          qs_notes: qsNotes,
-        })
-        .eq('id', selectedExpense.id);
-
-      if (updateError) throw updateError;
-
-      await supabase.from('approvals').insert({
-        record_id: selectedExpense.id,
-        approver_user_id: user.id,
-        action: `qs_${dialogAction}d`,
-        note: qsNotes,
-      });
-
-      if (dialogAction === 'approve') {
-        // Create ledger entry
-        await supabase.from('ledger_entries').insert({
-          record_id: selectedExpense.id,
-          account_code: 'EXP-WD',
-          description: `WD Expense: ${selectedExpense.purpose}`,
-          debit: selectedExpense.amount,
-          credit: 0,
-        });
-      }
+      // Update expense status via API
+      await expenseApi.updateStatus(selectedExpense.id, newStatus, qsNotes);
 
       toast.success(
         dialogAction === 'approve'
@@ -183,8 +146,8 @@ export default function QSQueue() {
                     )}
                     
                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                      <span>Site: {(expense as any).sites?.name || '-'}</span>
-                      <span>MD: {(expense as any).managing_directors?.name || '-'}</span>
+                      <span>Site: {(expense as any).site_name || '-'}</span>
+                      <span>MD: {(expense as any).md_name || '-'}</span>
                       <span>Date: {format(new Date(expense.entry_date), 'MMM d, yyyy')}</span>
                     </div>
                   </div>
