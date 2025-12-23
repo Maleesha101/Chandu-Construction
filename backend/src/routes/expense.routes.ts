@@ -144,27 +144,60 @@ router.post('/',
 
       const user = req.user!;
 
-      const result = await query(
-        `INSERT INTO expense_records 
-        (to_name, purpose, amount, site_id, from_bank_account_id, md_id, 
-          payment_method, reference, entry_date, entered_by_user_id, status)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
-         RETURNING *`,
-        [
-          to_name,
-          purpose,
-          amount,
-          site_id,
-          from_bank_account_id || null,
-          md_id || null,
-          payment_method || 'cash',
-          reference || null,
-          entry_date || new Date(),
-          user.userId
-        ]
-      );
+      // Start transaction
+      await query('BEGIN');
 
-      res.status(201).json(result.rows[0]);
+      try {
+        // If payment is from bank account, check balance and deduct
+        if (from_bank_account_id && (payment_method === 'bank_account' || payment_method === 'bank' || payment_method === 'bank_transfer')) {
+          const bankResult = await query(
+            'SELECT balance FROM bank_accounts WHERE id = $1',
+            [from_bank_account_id]
+          );
+
+          if (bankResult.rows.length === 0) {
+            throw new Error('Bank account not found');
+          }
+
+          const currentBalance = parseFloat(bankResult.rows[0].balance);
+          if (currentBalance < amount) {
+            throw new Error('Insufficient bank balance');
+          }
+
+          // Deduct from bank account
+          await query(
+            'UPDATE bank_accounts SET balance = balance - $1 WHERE id = $2',
+            [amount, from_bank_account_id]
+          );
+        }
+
+        // Create expense record
+        const result = await query(
+          `INSERT INTO expense_records 
+          (to_name, purpose, amount, site_id, from_bank_account_id, md_id, 
+            payment_method, reference, entry_date, entered_by_user_id, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
+           RETURNING *`,
+          [
+            to_name,
+            purpose,
+            amount,
+            site_id,
+            from_bank_account_id || null,
+            md_id || null,
+            payment_method || 'cash',
+            reference || null,
+            entry_date || new Date(),
+            user.userId
+          ]
+        );
+
+        await query('COMMIT');
+        res.status(201).json(result.rows[0]);
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
+      }
     } catch (error: any) {
       console.error('Error creating expense:', error);
       console.error('Error details:', {
@@ -223,25 +256,45 @@ router.patch('/:id/status',
         return res.status(403).json({ error: 'Not authorized to update this expense' });
       }
 
-      // Update status
-      const result = await query(
-        `UPDATE expense_records 
-          SET status = $1, updated_at = NOW()
-          WHERE id = $2
-         RETURNING *`,
-        [status, id]
-      );
+      // Start transaction for status update
+      await query('BEGIN');
 
-      // Record approval
-      if (comments) {
-        await query(
-          `INSERT INTO approvals (record_id, approver_id, approved, comments)
-            VALUES ($1, $2, $3, $4)`,
-          [id, user.userId, status.includes('approved'), comments]
+      try {
+        // If expense is being rejected and was paid from bank, refund the amount
+        if ((status === 'rejected' || status === 'wd_rejected') && 
+            expense.from_bank_account_id && 
+            (expense.payment_method === 'bank_account' || expense.payment_method === 'bank' || expense.payment_method === 'bank_transfer') &&
+            (expense.status === 'pending' || expense.status === 'wd_pending')) {
+          await query(
+            'UPDATE bank_accounts SET balance = balance + $1 WHERE id = $2',
+            [expense.amount, expense.from_bank_account_id]
+          );
+        }
+
+        // Update status
+        const result = await query(
+          `UPDATE expense_records 
+            SET status = $1, updated_at = NOW()
+            WHERE id = $2
+           RETURNING *`,
+          [status, id]
         );
-      }
 
-      res.json(result.rows[0]);
+        // Record approval
+        if (comments) {
+          await query(
+            `INSERT INTO approvals (record_id, approver_id, approved, comments)
+              VALUES ($1, $2, $3, $4)`,
+            [id, user.userId, status.includes('approved'), comments]
+          );
+        }
+
+        await query('COMMIT');
+        res.json(result.rows[0]);
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
+      }
     } catch (error) {
       console.error('Error updating expense status:', error);
       res.status(500).json({ error: 'Failed to update expense status' });

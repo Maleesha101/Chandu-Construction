@@ -168,6 +168,13 @@ export const userApi = {
     return apiFetch('/users/me');
   },
 
+  async createUser(userData: { email: string; password: string; full_name: string; phone?: string; role: string }) {
+    return apiFetch('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  },
+
   async updateRole(id: string, role: string) {
     return apiFetch(`/users/${id}/role`, {
       method: 'PATCH',

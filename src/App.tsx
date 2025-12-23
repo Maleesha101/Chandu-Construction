@@ -13,7 +13,6 @@ import Expenses from "./pages/Expenses";
 import NewExpense from "./pages/NewExpense";
 import Approvals from "./pages/Approvals";
 import QSQueue from "./pages/QSQueue";
-import Funding from "./pages/Funding";
 import Reports from "./pages/Reports";
 import Sites from "./pages/Sites";
 import Users from "./pages/Users";
@@ -43,7 +42,6 @@ const App = () => (
             } />
             <Route path="/approvals" element={<Approvals />} />
             <Route path="/qs-queue" element={<QSQueue />} />
-            <Route path="/funding" element={<Funding />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/sites" element={<Sites />} />
             <Route path="/users" element={<Users />} />

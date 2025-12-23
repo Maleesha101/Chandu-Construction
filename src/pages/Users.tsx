@@ -10,11 +10,30 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { Profile, UserRole, AppRole } from '@/lib/types';
-import { Users as UsersIcon, Loader2, Shield, Mail } from 'lucide-react';
+import { AppRole } from '@/lib/types';
+import { Users as UsersIcon, Loader2, Shield, Mail, UserPlus, Key, Copy, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
+import { userApi } from '@/lib/apiClient';
+import { toast } from 'sonner';
 
 const roleColors: Record<AppRole, string> = {
   boss: 'bg-amber-100 text-amber-800',
@@ -32,14 +51,27 @@ const roleLabels: Record<AppRole, string> = {
   viewer: 'Viewer',
 };
 
-interface UserWithRole extends Profile {
-  role?: AppRole;
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  role: AppRole;
+  created_at: string;
 }
 
 export default function Users() {
   const { isRole } = useAuth();
-  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);    const [showPassword, setShowPassword] = useState(false);  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    full_name: '',
+    phone: '',
+    role: 'viewer' as AppRole,
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -47,33 +79,105 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('*');
-
-      if (profiles && roles) {
-        const usersWithRoles = profiles.map((profile) => {
-          const userRole = roles.find((r) => r.user_id === profile.id);
-          return {
-            ...profile,
-            role: userRole?.role as AppRole | undefined,
-          };
-        });
-        setUsers(usersWithRoles as UserWithRole[]);
-      }
+      const data = await userApi.getAll();
+      setUsers(data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast.error('Failed to load users');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isRole('boss')) {
+  const handleRoleChange = async (userId: string, newRole: AppRole) => {
+    setUpdating(userId);
+    try {
+      await userApi.updateRole(userId, newRole);
+      toast.success('User role updated successfully');
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast.error('Failed to update user role');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const generatePassword = () => {
+    const length = 12;
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const special = '!@#$%^&*';
+    const allChars = uppercase + lowercase + numbers + special;
+    
+    let password = '';
+    // Ensure at least one character from each category
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += special[Math.floor(Math.random() * special.length)];
+    
+    // Fill the rest randomly
+    for (let i = password.length; i < length; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+    
+    // Shuffle the password
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+    
+    setFormData({ ...formData, password });
+    setShowPassword(true);
+    toast.success('Strong password generated!');
+  };
+
+  const copyPassword = async () => {
+    if (formData.password) {
+      await navigator.clipboard.writeText(formData.password);
+      toast.success('Password copied to clipboard!');
+    }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.password || !formData.full_name) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setSubmitting(true);
+
+    try {
+      await userApi.createUser({
+        email: formData.email.trim(),
+        password: formData.password,
+        full_name: formData.full_name.trim(),
+        phone: formData.phone.trim() || undefined,
+        role: formData.role,
+      });
+
+      toast.success('User created successfully');
+      setAddDialogOpen(false);
+      setFormData({
+        email: '',
+        password: '',
+        full_name: '',
+        phone: '',
+        role: 'viewer',
+      });
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast.error(error.message || 'Failed to create user');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isRole(['boss', 'admin'])) {
     return (
       <DashboardLayout title="Users">
         <div className="stat-card text-center py-12">
@@ -85,6 +189,155 @@ export default function Users() {
 
   return (
     <DashboardLayout title="User Management" description="View and manage system users">
+      {/* Header with Add User Button */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold">Users</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage user accounts and permissions
+          </p>
+        </div>
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add User
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New User</DialogTitle>
+              <DialogDescription>
+                Create a new user account for the system.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Full Name *</Label>
+                <Input
+                  id="full_name"
+                  placeholder="John Doe"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Minimum 6 characters"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required
+                      minLength={6}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={generatePassword}
+                    title="Generate strong password"
+                  >
+                    <Key className="h-4 w-4" />
+                  </Button>
+                  {formData.password && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={copyPassword}
+                      title="Copy password"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Click the key icon to generate a strong password
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="Optional"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">Role *</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => setFormData({ ...formData, role: value as AppRole })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="boss">Owner</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="qs">QS Dept</SelectItem>
+                    <SelectItem value="md">Managing Director</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAddDialogOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create User
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {Object.entries(roleLabels).map(([role, label]) => {
@@ -120,6 +373,7 @@ export default function Users() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,6 +405,24 @@ export default function Users() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Select
+                      value={user.role}
+                      onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
+                      disabled={updating === user.id}
+                    >
+                      <SelectTrigger className="w-[140px] ml-auto">
+                        <SelectValue placeholder="Change role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="boss">Owner</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="qs">QS Dept</SelectItem>
+                        <SelectItem value="md">Managing Director</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                 </TableRow>
               ))}
