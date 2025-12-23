@@ -48,6 +48,10 @@ export interface Site {
   code: string | null;
   active: boolean;
   created_at: string;
+  petty_cash_expenses?: number;
+  total_expenses?: number;
+  petty_cash_count?: number;
+  total_expense_count?: number;
 }
 
 export interface ExpenseRecord {
@@ -70,6 +74,11 @@ export interface ExpenseRecord {
   created_at: string;
   updated_at: string;
   // Joined fields
+  entered_by_name?: string;
+  site_name?: string;
+  site_code?: string;
+  bank_name?: string;
+  md_name?: string;
   managing_director?: ManagingDirector;
   bank_account?: BankAccount;
   site?: Site;

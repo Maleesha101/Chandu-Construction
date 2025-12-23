@@ -227,7 +227,7 @@ CREATE POLICY "Boss can manage bank accounts"
   ON public.bank_accounts FOR ALL
   USING (public.has_role(auth.uid(), 'boss'));
 
--- Managing directors policies
+-- Supervisors policies
 CREATE POLICY "Authenticated users can view MDs"
   ON public.managing_directors FOR SELECT
   TO authenticated

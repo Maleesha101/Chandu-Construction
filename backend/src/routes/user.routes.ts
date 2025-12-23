@@ -23,6 +23,25 @@ router.get('/',
   }
 );
 
+// Get all supervisors (users with 'md' role)
+router.get('/supervisors',
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const result = await query(
+        `SELECT id, email, full_name, phone, role, active, created_at
+        FROM users
+        WHERE role = 'md' AND active = true
+        ORDER BY full_name`
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching supervisors:', error);
+      res.status(500).json({ error: 'Failed to fetch supervisors' });
+    }
+  }
+);
+
 // Get current user profile
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {

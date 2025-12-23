@@ -5,20 +5,48 @@ import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// Get all sites
+// Get all sites with expense tracking
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { active } = req.query;
     
-    let queryText = 'SELECT * FROM sites WHERE 1=1';
+    let queryText = `
+      SELECT 
+        s.*,
+        COALESCE(SUM(CASE 
+          WHEN e.payment_method = 'cash' 
+          AND e.status IN ('approved', 'wd_approved') 
+          THEN e.amount 
+          ELSE 0 
+        END), 0) as petty_cash_expenses,
+        COALESCE(SUM(CASE 
+          WHEN e.status IN ('approved', 'wd_approved') 
+          THEN e.amount 
+          ELSE 0 
+        END), 0) as total_expenses,
+        COUNT(CASE 
+          WHEN e.payment_method = 'cash' 
+          AND e.status IN ('approved', 'wd_approved') 
+          THEN 1 
+        END) as petty_cash_count,
+        COUNT(CASE 
+          WHEN e.status IN ('approved', 'wd_approved') 
+          THEN 1 
+        END) as total_expense_count
+      FROM sites s
+      LEFT JOIN expense_records e ON s.id = e.site_id
+      WHERE 1=1
+    `;
     const params: any[] = [];
+    let paramIndex = 1;
     
     if (active !== undefined) {
-      queryText += ' AND active = $1';
+      queryText += ` AND s.active = $${paramIndex}`;
       params.push(active === 'true');
+      paramIndex++;
     }
     
-    queryText += ' ORDER BY name';
+    queryText += ' GROUP BY s.id ORDER BY s.name';
     
     const result = await query(queryText, params);
     res.json(result.rows);

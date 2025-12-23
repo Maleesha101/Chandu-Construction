@@ -100,7 +100,7 @@ npm start
 - `GET /api/banks` - Get all bank accounts
 - `POST /api/banks` - Create bank account (Boss only)
 
-### Managing Directors
+### Supervisors
 
 - `GET /api/managing-directors` - Get all MDs
 
@@ -135,7 +135,7 @@ Authorization: Bearer <your-jwt-token>
 See `src/database/schema.sql` for the complete database structure including:
 - Users with roles
 - Expense records with approval workflow
-- Sites, bank accounts, managing directors
+- Sites, bank accounts, Supervisors
 - Approval history and ledger entries
 
 ## Error Handling

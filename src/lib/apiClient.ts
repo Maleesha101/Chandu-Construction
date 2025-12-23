@@ -164,6 +164,10 @@ export const userApi = {
     return apiFetch('/users');
   },
 
+  async getSupervisors() {
+    return apiFetch('/users/supervisors');
+  },
+
   async getMe() {
     return apiFetch('/users/me');
   },

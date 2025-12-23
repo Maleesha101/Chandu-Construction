@@ -21,10 +21,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { bankApi, siteApi, expenseApi } from '@/lib/apiClient';
+import { bankApi, siteApi, expenseApi, userApi } from '@/lib/apiClient';
 import { BankAccount, ManagingDirector, Site } from '@/lib/types';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Upload, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus } from 'lucide-react';
 import { z } from 'zod';
 
 const expenseSchema = z.object({
@@ -50,7 +50,7 @@ export default function NewExpense() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [managingDirectors, setManagingDirectors] = useState<ManagingDirector[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [fromPersons, setFromPersons] = useState<string[]>(['Site Manager', 'Project Manager', 'Supervisor', 'Accountant']);
+  const [supervisors, setSupervisors] = useState<Array<{ id: string; full_name: string }>>([]);
   const [beneficiaries, setBeneficiaries] = useState<string[]>(['Supplier', 'Contractor', 'Worker', 'Vendor']);
   
   const [formData, setFormData] = useState({
@@ -66,22 +66,22 @@ export default function NewExpense() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // Dialog states for adding new persons
-  const [showAddFromDialog, setShowAddFromDialog] = useState(false);
+  // Dialog states for adding new beneficiaries
   const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
-  const [newFromPerson, setNewFromPerson] = useState('');
   const [newBeneficiary, setNewBeneficiary] = useState('');
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [banks, sitesData] = await Promise.all([
+        const [banks, sitesData, supervisorsData] = await Promise.all([
           bankApi.getAll(),
           siteApi.getAll(true),
+          userApi.getSupervisors(),
         ]);
 
         setBankAccounts(banks);
         setSites(sitesData);
+        setSupervisors(supervisorsData);
       } catch (error) {
         console.error('Error fetching form data:', error);
         toast.error('Failed to load form data');
@@ -92,16 +92,6 @@ export default function NewExpense() {
 
     fetchData();
   }, []);
-
-  const handleAddFromPerson = () => {
-    if (newFromPerson.trim()) {
-      setFromPersons([...fromPersons, newFromPerson.trim()]);
-      setFormData({ ...formData, from_person: newFromPerson.trim() });
-      setNewFromPerson('');
-      setShowAddFromDialog(false);
-      toast.success('Person added successfully');
-    }
-  };
 
   const handleAddBeneficiary = () => {
     if (newBeneficiary.trim()) {
@@ -207,34 +197,27 @@ export default function NewExpense() {
             {/* From Person */}
             <div className="space-y-2">
               <Label htmlFor="from_person">From (Transaction Made By) *</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={formData.from_person}
-                  onValueChange={(value) => setFormData({ ...formData, from_person: value })}
-                  disabled={loading}
-                >
-                  <SelectTrigger className={errors.from_person ? 'border-destructive' : ''}>
-                    <SelectValue placeholder="Select person" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fromPersons.map((person) => (
-                      <SelectItem key={person} value={person}>
-                        {person}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setShowAddFromDialog(true)}
-                  title="Add new person"
-                  disabled={loading}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Select
+                value={formData.from_person}
+                onValueChange={(value) => setFormData({ ...formData, from_person: value })}
+                disabled={loading}
+              >
+                <SelectTrigger className={errors.from_person ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select supervisor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {supervisors.map((supervisor) => (
+                    <SelectItem key={supervisor.id} value={supervisor.full_name}>
+                      {supervisor.full_name}
+                    </SelectItem>
+                  ))}
+                  {supervisors.length === 0 && (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No supervisors available
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
               {errors.from_person && (
                 <p className="text-xs text-destructive">{errors.from_person}</p>
               )}
@@ -385,33 +368,6 @@ export default function NewExpense() {
               <p className="text-xs text-destructive">{errors.purpose}</p>
             )}
           </div>
-
-          {/* Reference */}
-          <div className="space-y-2">
-            <Label htmlFor="reference">Reference / Invoice Number</Label>
-            <Input
-              id="reference"
-              placeholder="Optional reference number"
-              value={formData.reference}
-              onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-              disabled={loading}
-            />
-          </div>
-
-          {/* Attachments - Placeholder */}
-          <div className="space-y-2">
-            <Label>Attachments</Label>
-            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-              <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Drag & drop bills or receipts here, or click to browse
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                PDF, JPG, PNG up to 10MB
-              </p>
-            </div>
-          </div>
-
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-border">
             <Button type="submit" disabled={loading}>
@@ -424,38 +380,6 @@ export default function NewExpense() {
           </div>
         </div>
       </form>
-
-      {/* Add From Person Dialog */}
-      <Dialog open={showAddFromDialog} onOpenChange={setShowAddFromDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Person</DialogTitle>
-            <DialogDescription>
-              Add a new person who can make transactions.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="new_from_person">Person Name</Label>
-              <Input
-                id="new_from_person"
-                placeholder="Enter person name"
-                value={newFromPerson}
-                onChange={(e) => setNewFromPerson(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddFromPerson()}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowAddFromDialog(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleAddFromPerson}>
-              Add Person
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Add Beneficiary Dialog */}
       <Dialog open={showAddBeneficiaryDialog} onOpenChange={setShowAddBeneficiaryDialog}>

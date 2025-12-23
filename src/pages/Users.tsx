@@ -47,7 +47,7 @@ const roleLabels: Record<AppRole, string> = {
   boss: 'Owner',
   admin: 'Admin',
   qs: 'QS Dept',
-  md: 'Managing Director',
+  md: 'Supervisor',
   viewer: 'Viewer',
 };
 
@@ -313,7 +313,7 @@ export default function Users() {
                     <SelectItem value="boss">Owner</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="qs">QS Dept</SelectItem>
-                    <SelectItem value="md">Managing Director</SelectItem>
+                    <SelectItem value="md">Supervisor</SelectItem>
                     <SelectItem value="viewer">Viewer</SelectItem>
                   </SelectContent>
                 </Select>
@@ -419,7 +419,7 @@ export default function Users() {
                         <SelectItem value="boss">Owner</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="qs">QS Dept</SelectItem>
-                        <SelectItem value="md">Managing Director</SelectItem>
+                        <SelectItem value="md">Supervisor</SelectItem>
                         <SelectItem value="viewer">Viewer</SelectItem>
                       </SelectContent>
                     </Select>

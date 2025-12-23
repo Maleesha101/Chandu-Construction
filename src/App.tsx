@@ -15,6 +15,7 @@ import Approvals from "./pages/Approvals";
 import QSQueue from "./pages/QSQueue";
 import Reports from "./pages/Reports";
 import Sites from "./pages/Sites";
+import SiteExpenses from "./pages/SiteExpenses";
 import Users from "./pages/Users";
 import SetupRole from "./pages/SetupRole";
 import BankManagement from "./pages/BankManagement";
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/qs-queue" element={<QSQueue />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/sites" element={<Sites />} />
+            <Route path="/sites/:siteId" element={<SiteExpenses />} />
             <Route path="/users" element={<Users />} />
             <Route path="/settings/banks" element={
               <ProtectedRoute allowedRoles={['boss', 'admin']}>

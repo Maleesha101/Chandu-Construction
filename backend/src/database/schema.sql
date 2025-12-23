@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Managing directors table
+-- Supervisors table
 CREATE TABLE IF NOT EXISTS managing_directors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,

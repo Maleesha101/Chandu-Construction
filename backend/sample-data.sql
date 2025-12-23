@@ -10,7 +10,7 @@ INSERT INTO bank_accounts (name, account_number, bank_name, balance, currency, a
 ('Petty Cash Account', '987654321', 'Commercial Bank', 500000.00, 'LKR', true),
 ('Project Account', '456789123', 'Sampath Bank', 2000000.00, 'LKR', true);
 
--- Sample Managing Directors
+-- Sample Supervisors
 INSERT INTO managing_directors (name, contact, email, float_balance, active) VALUES 
 ('John Silva', '+94771234567', 'john@company.lk', 100000.00, true),
 ('Maria Perera', '+94777654321', 'maria@company.lk', 150000.00, true),
