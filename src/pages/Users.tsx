@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,6 +62,7 @@ interface User {
 
 export default function Users() {
   const { isRole } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -378,7 +380,11 @@ export default function Users() {
             </TableHeader>
             <TableBody>
               {users.map((user) => (
-                <TableRow key={user.id} className="data-table-row">
+                <TableRow 
+                  key={user.id} 
+                  className={`data-table-row ${user.role === 'md' ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                  onClick={() => user.role === 'md' && navigate(`/users/${user.id}`)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
@@ -407,22 +413,24 @@ export default function Users() {
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Select
-                      value={user.role}
-                      onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
-                      disabled={updating === user.id}
-                    >
-                      <SelectTrigger className="w-[140px] ml-auto">
-                        <SelectValue placeholder="Change role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="boss">Owner</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="qs">QS Dept</SelectItem>
-                        <SelectItem value="md">Supervisor</SelectItem>
-                        <SelectItem value="viewer">Viewer</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={user.role}
+                        onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
+                        disabled={updating === user.id}
+                      >
+                        <SelectTrigger className="w-[140px] ml-auto">
+                          <SelectValue placeholder="Change role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="boss">Owner</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="qs">QS Dept</SelectItem>
+                          <SelectItem value="md">Supervisor</SelectItem>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

@@ -17,6 +17,7 @@ import Reports from "./pages/Reports";
 import Sites from "./pages/Sites";
 import SiteExpenses from "./pages/SiteExpenses";
 import Users from "./pages/Users";
+import SupervisorDetails from "./pages/SupervisorDetails";
 import SetupRole from "./pages/SetupRole";
 import BankManagement from "./pages/BankManagement";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/sites" element={<Sites />} />
             <Route path="/sites/:siteId" element={<SiteExpenses />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/users/:userId" element={<SupervisorDetails />} />
             <Route path="/settings/banks" element={
               <ProtectedRoute allowedRoles={['boss', 'admin']}>
                 <BankManagement />
