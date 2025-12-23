@@ -20,7 +20,8 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
           ELSE 0 
         END), 0) as petty_cash_expenses,
         COALESCE(SUM(CASE 
-          WHEN e.status IN ('approved', 'wd_approved') 
+          WHEN e.payment_method = 'cash'
+          AND e.status IN ('approved', 'wd_approved') 
           THEN e.amount 
           ELSE 0 
         END), 0) as total_expenses,
@@ -30,7 +31,8 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
           THEN 1 
         END) as petty_cash_count,
         COUNT(CASE 
-          WHEN e.status IN ('approved', 'wd_approved') 
+          WHEN e.payment_method = 'cash'
+          AND e.status IN ('approved', 'wd_approved') 
           THEN 1 
         END) as total_expense_count
       FROM sites s

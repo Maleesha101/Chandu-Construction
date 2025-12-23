@@ -14,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { expenseApi, userApi } from '@/lib/apiClient';
 import { ExpenseRecord } from '@/lib/types';
-import { ArrowLeft, Loader2, Receipt, Banknote, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Loader2, Receipt, Banknote, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -80,7 +80,8 @@ export default function SupervisorDetails() {
         );
         
         console.log('Filtered expenses:', userExpenses.length);
-        setExpenses(userExpenses);
+        // Only show cash expenses, exclude bank transfers
+        setExpenses(userExpenses.filter((e: ExpenseRecord) => e.payment_method === 'cash'));
       } catch (error) {
         console.error('Error fetching supervisor details:', error);
         toast.error('Failed to load supervisor details');
@@ -107,23 +108,14 @@ export default function SupervisorDetails() {
   }
 
   const approvedExpenses = expenses.filter((e) =>
-    ['approved', 'wd_approved'].includes(e.status)
+    e.payment_method === 'cash' && ['approved', 'wd_approved'].includes(e.status)
   );
   
   const pettyCashExpenses = approvedExpenses.filter(
     (e) => e.payment_method === 'cash'
   );
-  
-  const bankExpenses = approvedExpenses.filter(
-    (e) => e.payment_method !== 'cash'
-  );
 
   const totalPettyCash = pettyCashExpenses.reduce(
-    (sum, e) => sum + Number(e.amount),
-    0
-  );
-  
-  const totalBankSpent = bankExpenses.reduce(
     (sum, e) => sum + Number(e.amount),
     0
   );
@@ -134,7 +126,7 @@ export default function SupervisorDetails() {
   );
 
   const pendingAmount = expenses
-    .filter((e) => ['pending', 'wd_pending'].includes(e.status))
+    .filter((e) => e.payment_method === 'cash' && ['pending', 'wd_pending'].includes(e.status))
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
   return (
@@ -171,7 +163,7 @@ export default function SupervisorDetails() {
         </div>
 
         {/* Financial Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="stat-card !bg-blue-50 border-blue-200">
             <div className="flex items-center gap-2 text-blue-700 mb-1">
               <Receipt className="h-4 w-4" />
@@ -198,19 +190,6 @@ export default function SupervisorDetails() {
             </div>
           </div>
 
-          <div className="stat-card !bg-purple-50 border-purple-200">
-            <div className="flex items-center gap-2 text-purple-700 mb-1">
-              <TrendingDown className="h-4 w-4" />
-              <span className="text-sm font-medium">Bank Transfers</span>
-            </div>
-            <div className="text-2xl font-bold text-purple-900">
-              {formatCurrency(totalBankSpent)}
-            </div>
-            <div className="text-xs text-purple-600 mt-1">
-              {bankExpenses.length} bank transaction{bankExpenses.length !== 1 ? 's' : ''}
-            </div>
-          </div>
-
           <div className="stat-card !bg-orange-50 border-orange-200">
             <div className="flex items-center gap-2 text-orange-700 mb-1">
               <TrendingUp className="h-4 w-4" />
@@ -220,7 +199,7 @@ export default function SupervisorDetails() {
               {formatCurrency(pendingAmount)}
             </div>
             <div className="text-xs text-orange-600 mt-1">
-              {expenses.filter((e) => ['pending', 'wd_pending'].includes(e.status)).length} pending
+              {expenses.filter((e) => e.payment_method === 'cash' && ['pending', 'wd_pending'].includes(e.status)).length} pending
             </div>
           </div>
         </div>
@@ -239,10 +218,10 @@ export default function SupervisorDetails() {
           <div className="p-12 text-center">
             <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
-              No transactions yet
+              No petty cash transactions yet
             </h3>
             <p className="text-muted-foreground">
-              There are no expense records for this supervisor.
+              There are no petty cash expense records for this supervisor.
             </p>
           </div>
         ) : (
@@ -254,7 +233,6 @@ export default function SupervisorDetails() {
                   <TableHead>Site</TableHead>
                   <TableHead>Beneficiary</TableHead>
                   <TableHead>Purpose</TableHead>
-                  <TableHead>Payment Method</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -271,18 +249,6 @@ export default function SupervisorDetails() {
                     <TableCell>{expense.to_name}</TableCell>
                     <TableCell className="max-w-xs truncate">
                       {expense.purpose}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={expense.payment_method === 'cash' ? 'default' : 'secondary'}
-                        className={
-                          expense.payment_method === 'cash'
-                            ? 'bg-amber-100 text-amber-800'
-                            : ''
-                        }
-                      >
-                        {expense.payment_method === 'cash' ? 'Petty Cash' : 'Bank Transfer'}
-                      </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(Number(expense.amount))}

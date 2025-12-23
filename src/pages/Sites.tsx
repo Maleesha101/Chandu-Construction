@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Site } from '@/lib/types';
 import { siteApi } from '@/lib/apiClient';
 import { toast } from 'sonner';
-import { Plus, Building2, Loader2, MapPin, Banknote } from 'lucide-react';
+import { Plus, Building2, Loader2, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -110,18 +110,6 @@ export default function Sites() {
             <Building2 className="h-3 w-3" />
             {sites.filter((s) => s.active).length} Active Sites
           </Badge>
-          {sites.length > 0 && (
-            <>
-              <Badge variant="outline" className="gap-1 bg-amber-50 border-amber-200 text-amber-700">
-                <Banknote className="h-3 w-3" />
-                Petty Cash: LKR {sites.reduce((sum, s) => sum + (Number(s.petty_cash_expenses) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Banknote className="h-3 w-3" />
-                Total: LKR {sites.reduce((sum, s) => sum + (Number(s.total_expenses) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Badge>
-            </>
-          )}
         </div>
         {isRole(['boss', 'admin']) && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -199,7 +187,6 @@ export default function Sites() {
                 <TableHead>Site Name</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead className="text-right">Petty Cash</TableHead>
-                <TableHead className="text-right">Total Expenses</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -235,16 +222,6 @@ export default function Sites() {
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {site.petty_cash_count || 0} transaction{(site.petty_cash_count || 0) !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex flex-col items-end">
-                      <span className="font-medium">
-                        LKR {(Number(site.total_expenses) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {site.total_expense_count || 0} total
                       </span>
                     </div>
                   </TableCell>

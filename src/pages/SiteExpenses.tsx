@@ -14,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { expenseApi, siteApi } from '@/lib/apiClient';
 import { ExpenseRecord, Site } from '@/lib/types';
-import { ArrowLeft, Loader2, Receipt, Banknote, Building2, MapPin } from 'lucide-react';
+import { ArrowLeft, Loader2, Receipt, Building2, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -55,7 +55,8 @@ export default function SiteExpenses() {
         }
 
         setSite(foundSite);
-        setExpenses(expensesData);
+        // Filter to only show cash expenses, exclude bank transfers
+        setExpenses(expensesData.filter((e: ExpenseRecord) => e.payment_method === 'cash'));
       } catch (error) {
         console.error('Error fetching site expenses:', error);
         toast.error('Failed to load site expenses');
@@ -84,8 +85,8 @@ export default function SiteExpenses() {
   const pettyCashExpenses = expenses.filter(
     (e) => e.payment_method === 'cash' && ['approved', 'wd_approved'].includes(e.status)
   );
-  const approvedExpenses = expenses.filter((e) =>
-    ['approved', 'wd_approved'].includes(e.status)
+  const approvedExpenses = expenses.filter(
+    (e) => e.payment_method === 'cash' && ['approved', 'wd_approved'].includes(e.status)
   );
 
   const totalPettyCash = pettyCashExpenses.reduce(
@@ -133,19 +134,6 @@ export default function SiteExpenses() {
 
           {/* Summary Stats */}
           <div className="flex gap-4">
-            <div className="stat-card !bg-amber-50 border-amber-200">
-              <div className="flex items-center gap-2 text-amber-700 mb-1">
-                <Banknote className="h-4 w-4" />
-                <span className="text-sm font-medium">Petty Cash</span>
-              </div>
-              <div className="text-2xl font-bold text-amber-900">
-                {formatCurrency(totalPettyCash)}
-              </div>
-              <div className="text-xs text-amber-600 mt-1">
-                {pettyCashExpenses.length} transaction{pettyCashExpenses.length !== 1 ? 's' : ''}
-              </div>
-            </div>
-
             <div className="stat-card">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <Receipt className="h-4 w-4" />
@@ -168,10 +156,10 @@ export default function SiteExpenses() {
           <div className="p-12 text-center">
             <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
-              No expenses yet
+              No petty cash expenses yet
             </h3>
             <p className="text-muted-foreground">
-              There are no expense records for this site.
+              There are no petty cash expense records for this site.
             </p>
           </div>
         ) : (
@@ -182,7 +170,6 @@ export default function SiteExpenses() {
                   <TableHead>Date</TableHead>
                   <TableHead>Beneficiary</TableHead>
                   <TableHead>Purpose</TableHead>
-                  <TableHead>Payment Method</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Entered By</TableHead>
@@ -197,18 +184,6 @@ export default function SiteExpenses() {
                     <TableCell>{expense.to_name}</TableCell>
                     <TableCell className="max-w-xs truncate">
                       {expense.purpose}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={expense.payment_method === 'cash' ? 'default' : 'secondary'}
-                        className={
-                          expense.payment_method === 'cash'
-                            ? 'bg-amber-100 text-amber-800'
-                            : ''
-                        }
-                      >
-                        {expense.payment_method === 'cash' ? 'Petty Cash' : 'Bank Transfer'}
-                      </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(Number(expense.amount))}
