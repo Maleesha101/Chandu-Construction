@@ -126,7 +126,7 @@ export default function NewExpense() {
         reference: formData.reference || undefined,
       });
 
-      // Prepare the payload
+      // Prepare the payload with approval status
       await expenseApi.create({
         to_name: validatedData.beneficiary,
         purpose: validatedData.purpose,
@@ -137,12 +137,14 @@ export default function NewExpense() {
         payment_method: validatedData.payment_source === 'petty_cash' ? 'cash' : 'bank_transfer',
         reference: validatedData.reference || null,
         entry_date: validatedData.transaction_date,
+        approval_status: 'pending', // Set to pending for approval workflow
         // Additional fields that may need to be stored in backend
         // from_person: validatedData.from_person,
       });
 
-      toast.success('Expense record created successfully');
-      navigate('/expenses');
+      toast.success('Expense submitted for approval successfully');
+      // Navigate to dashboard to see the submission
+      navigate('/');
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -192,6 +194,7 @@ export default function NewExpense() {
                 value={formData.transaction_date}
                 onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
                 className={errors.transaction_date ? 'border-destructive' : ''}
+                disabled={loading}
               />
               {errors.transaction_date && (
                 <p className="text-xs text-destructive">{errors.transaction_date}</p>
@@ -208,6 +211,7 @@ export default function NewExpense() {
                 <Select
                   value={formData.from_person}
                   onValueChange={(value) => setFormData({ ...formData, from_person: value })}
+                  disabled={loading}
                 >
                   <SelectTrigger className={errors.from_person ? 'border-destructive' : ''}>
                     <SelectValue placeholder="Select person" />
@@ -226,6 +230,7 @@ export default function NewExpense() {
                   size="icon"
                   onClick={() => setShowAddFromDialog(true)}
                   title="Add new person"
+                  disabled={loading}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -243,6 +248,7 @@ export default function NewExpense() {
                 onValueChange={(value: 'petty_cash' | 'bank_account') => 
                   setFormData({ ...formData, payment_source: value, from_bank_account_id: '' })
                 }
+                disabled={loading}
               >
                 <SelectTrigger className={errors.payment_source ? 'border-destructive' : ''}>
                   <SelectValue placeholder="Select payment source" />
@@ -264,6 +270,7 @@ export default function NewExpense() {
                 <Select
                   value={formData.from_bank_account_id}
                   onValueChange={(value) => setFormData({ ...formData, from_bank_account_id: value })}
+                  disabled={loading}
                 >
                   <SelectTrigger className={errors.from_bank_account_id ? 'border-destructive' : ''}>
                     <SelectValue placeholder="Select bank account" />
@@ -289,6 +296,7 @@ export default function NewExpense() {
                 <Select
                   value={formData.beneficiary}
                   onValueChange={(value) => setFormData({ ...formData, beneficiary: value })}
+                  disabled={loading}
                 >
                   <SelectTrigger className={errors.beneficiary ? 'border-destructive' : ''}>
                     <SelectValue placeholder="Select beneficiary" />
@@ -307,6 +315,7 @@ export default function NewExpense() {
                   size="icon"
                   onClick={() => setShowAddBeneficiaryDialog(true)}
                   title="Add new beneficiary"
+                  disabled={loading}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -322,6 +331,7 @@ export default function NewExpense() {
               <Select
                 value={formData.site_id}
                 onValueChange={(value) => setFormData({ ...formData, site_id: value })}
+                disabled={loading}
               >
                 <SelectTrigger className={errors.site_id ? 'border-destructive' : ''}>
                   <SelectValue placeholder="Select site" />
@@ -351,6 +361,7 @@ export default function NewExpense() {
                 value={formData.amount}
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 className={errors.amount ? 'border-destructive' : ''}
+                disabled={loading}
               />
               {errors.amount && (
                 <p className="text-xs text-destructive">{errors.amount}</p>
@@ -368,6 +379,7 @@ export default function NewExpense() {
               value={formData.purpose}
               onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
               className={errors.purpose ? 'border-destructive' : ''}
+              disabled={loading}
             />
             {errors.purpose && (
               <p className="text-xs text-destructive">{errors.purpose}</p>
@@ -382,6 +394,7 @@ export default function NewExpense() {
               placeholder="Optional reference number"
               value={formData.reference}
               onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+              disabled={loading}
             />
           </div>
 
