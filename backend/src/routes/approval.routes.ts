@@ -11,10 +11,10 @@ router.get('/record/:recordId', authenticate, async (req: AuthRequest, res: Resp
 
     const result = await query(
       `SELECT a.*, u.full_name as approver_name
-       FROM approvals a
-       JOIN users u ON a.approver_id = u.id
-       WHERE a.record_id = $1
-       ORDER BY a.approved_at DESC`,
+      FROM approvals a
+      JOIN users u ON a.approver_id = u.id
+      WHERE a.record_id = $1
+      ORDER BY a.approved_at DESC`,
       [recordId]
     );
 

@@ -13,11 +13,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     let queryText = `
       SELECT e.*, 
-             u.full_name as entered_by_name,
-             s.name as site_name,
-             s.code as site_code,
-             b.name as bank_name,
-             md.name as md_name
+            u.full_name as entered_by_name,
+            s.name as site_name,
+            s.code as site_code,
+            b.name as bank_name,
+            md.name as md_name
       FROM expense_records e
       LEFT JOIN users u ON e.entered_by_user_id = u.id
       LEFT JOIN sites s ON e.site_id = s.id
@@ -77,10 +77,10 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     let queryText = `
       SELECT e.*, 
-             u.full_name as entered_by_name,
-             s.name as site_name,
-             b.name as bank_name,
-             md.name as md_name
+            u.full_name as entered_by_name,
+            s.name as site_name,
+            b.name as bank_name,
+            md.name as md_name
       FROM expense_records e
       LEFT JOIN users u ON e.entered_by_user_id = u.id
       LEFT JOIN sites s ON e.site_id = s.id
@@ -146,9 +146,9 @@ router.post('/',
 
       const result = await query(
         `INSERT INTO expense_records 
-         (to_name, purpose, amount, site_id, from_bank_account_id, md_id, 
+        (to_name, purpose, amount, site_id, from_bank_account_id, md_id, 
           payment_method, reference, entry_date, entered_by_user_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
          RETURNING *`,
         [
           to_name,
@@ -165,9 +165,22 @@ router.post('/',
       );
 
       res.status(201).json(result.rows[0]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating expense:', error);
-      res.status(500).json({ error: 'Failed to create expense' });
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail
+      });
+      
+      if (error.code === '23503') {
+        return res.status(400).json({ error: 'Invalid reference: site_id, from_bank_account_id, or md_id does not exist' });
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to create expense',
+        details: error.message 
+      });
     }
   }
 );
@@ -213,8 +226,8 @@ router.patch('/:id/status',
       // Update status
       const result = await query(
         `UPDATE expense_records 
-         SET status = $1, updated_at = NOW()
-         WHERE id = $2
+          SET status = $1, updated_at = NOW()
+          WHERE id = $2
          RETURNING *`,
         [status, id]
       );
@@ -223,7 +236,7 @@ router.patch('/:id/status',
       if (comments) {
         await query(
           `INSERT INTO approvals (record_id, approver_id, approved, comments)
-           VALUES ($1, $2, $3, $4)`,
+            VALUES ($1, $2, $3, $4)`,
           [id, user.userId, status.includes('approved'), comments]
         );
       }

@@ -38,8 +38,8 @@ router.post('/register',
       // Create user
       const result = await query(
         `INSERT INTO users (email, password_hash, full_name, phone, role)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, email, full_name, phone, role, created_at`,
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, email, full_name, phone, role, created_at`,
         [email, password_hash, full_name, phone || null, role]
       );
 

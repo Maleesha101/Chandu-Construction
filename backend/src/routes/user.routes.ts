@@ -12,8 +12,8 @@ router.get('/',
     try {
       const result = await query(
         `SELECT id, email, full_name, phone, role, active, created_at
-         FROM users
-         ORDER BY full_name`
+        FROM users
+        ORDER BY full_name`
       );
       res.json(result.rows);
     } catch (error) {
@@ -30,7 +30,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
 
     const result = await query(
       `SELECT id, email, full_name, phone, role, active, created_at
-       FROM users WHERE id = $1`,
+      FROM users WHERE id = $1`,
       [user.userId]
     );
 
