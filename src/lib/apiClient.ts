@@ -131,6 +131,24 @@ export const bankApi = {
       body: JSON.stringify(bank),
     });
   },
+
+  async update(id: string, bank: any) {
+    return apiFetch(`/banks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(bank),
+    });
+  },
+
+  async transfer(transfer: any) {
+    return apiFetch('/banks/transfer', {
+      method: 'POST',
+      body: JSON.stringify(transfer),
+    });
+  },
+
+  async getTransfers() {
+    return apiFetch('/banks/transfers');
+  },
 };
 
 // Managing Director API

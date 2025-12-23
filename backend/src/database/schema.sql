@@ -117,6 +117,18 @@ CREATE TABLE IF NOT EXISTS funding_transactions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Bank transfers table for inter-account transfers
+CREATE TABLE IF NOT EXISTS bank_transfers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_account_id UUID NOT NULL REFERENCES bank_accounts(id),
+  to_account_id UUID NOT NULL REFERENCES bank_accounts(id),
+  amount DECIMAL(15, 2) NOT NULL CHECK (amount > 0),
+  description TEXT,
+  transfer_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT different_accounts CHECK (from_account_id != to_account_id)
+);
+
 -- Create indexes
 CREATE INDEX idx_expense_records_status ON expense_records(status);
 CREATE INDEX idx_expense_records_site_id ON expense_records(site_id);
@@ -124,6 +136,9 @@ CREATE INDEX idx_expense_records_entry_date ON expense_records(entry_date);
 CREATE INDEX idx_expense_records_entered_by ON expense_records(entered_by_user_id);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_approvals_record_id ON approvals(record_id);
+CREATE INDEX idx_bank_transfers_from_account ON bank_transfers(from_account_id);
+CREATE INDEX idx_bank_transfers_to_account ON bank_transfers(to_account_id);
+CREATE INDEX idx_bank_transfers_date ON bank_transfers(transfer_date DESC);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

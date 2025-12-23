@@ -18,6 +18,7 @@ import Reports from "./pages/Reports";
 import Sites from "./pages/Sites";
 import Users from "./pages/Users";
 import SetupRole from "./pages/SetupRole";
+import BankManagement from "./pages/BankManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,11 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/sites" element={<Sites />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/settings/banks" element={
+              <ProtectedRoute allowedRoles={['boss', 'admin']}>
+                <BankManagement />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
