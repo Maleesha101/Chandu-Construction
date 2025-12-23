@@ -50,7 +50,7 @@ export default function NewExpense() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [managingDirectors, setManagingDirectors] = useState<ManagingDirector[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [supervisors, setSupervisors] = useState<Array<{ id: string; full_name: string }>>([]);
+  const [transactionUsers, setTransactionUsers] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
   const [beneficiaries, setBeneficiaries] = useState<string[]>(['Supplier', 'Contractor', 'Worker', 'Vendor']);
   
   const [formData, setFormData] = useState({
@@ -69,19 +69,30 @@ export default function NewExpense() {
   // Dialog states for adding new beneficiaries
   const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
   const [newBeneficiary, setNewBeneficiary] = useState('');
+  
+  // Dialog state for adding new supervisor
+  const [showAddSupervisorDialog, setShowAddSupervisorDialog] = useState(false);
+  const [addingSupervisor, setAddingSupervisor] = useState(false);
+  const [newSupervisorData, setNewSupervisorData] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    phone: '',
+    role: 'md' as 'boss' | 'admin' | 'md',
+  });
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [banks, sitesData, supervisorsData] = await Promise.all([
+        const [banks, sitesData, usersData] = await Promise.all([
           bankApi.getAll(),
           siteApi.getAll(true),
-          userApi.getSupervisors(),
+          userApi.getTransactionUsers(),
         ]);
 
         setBankAccounts(banks);
         setSites(sitesData);
-        setSupervisors(supervisorsData);
+        setTransactionUsers(usersData);
       } catch (error) {
         console.error('Error fetching form data:', error);
         toast.error('Failed to load form data');
@@ -92,6 +103,52 @@ export default function NewExpense() {
 
     fetchData();
   }, []);
+
+  const fetchSupervisors = async () => {
+    try {
+      const usersData = await userApi.getTransactionUsers();
+      setTransactionUsers(usersData);
+    } catch (error) {
+      console.error('Error fetching transaction users:', error);
+    }
+  };
+
+  const handleAddSupervisor = async () => {
+    if (!newSupervisorData.full_name.trim() || !newSupervisorData.email.trim() || !newSupervisorData.password.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    if (newSupervisorData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setAddingSupervisor(true);
+    try {
+      await userApi.createUser({
+        email: newSupervisorData.email.trim(),
+        password: newSupervisorData.password,
+        full_name: newSupervisorData.full_name.trim(),
+        phone: newSupervisorData.phone.trim() || undefined,
+        role: newSupervisorData.role,
+      });
+
+      toast.success('User added successfully');
+      setShowAddSupervisorDialog(false);
+      setNewSupervisorData({ full_name: '', email: '', password: '', phone: '', role: 'md' });
+      
+      // Refresh supervisors list
+      await fetchSupervisors();
+      
+      // Auto-select the newly added supervisor
+      setFormData({ ...formData, from_person: newSupervisorData.full_name.trim() });
+    } catch (error: any) {
+      console.error('Error adding supervisor:', error);
+      toast.error(error.message || 'Failed to add supervisor');
+    } finally {
+      setAddingSupervisor(false);
+    }
+  };
 
   const handleAddBeneficiary = () => {
     if (newBeneficiary.trim()) {
@@ -197,27 +254,41 @@ export default function NewExpense() {
             {/* From Person */}
             <div className="space-y-2">
               <Label htmlFor="from_person">From (Transaction Made By) *</Label>
-              <Select
-                value={formData.from_person}
-                onValueChange={(value) => setFormData({ ...formData, from_person: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className={errors.from_person ? 'border-destructive' : ''}>
-                  <SelectValue placeholder="Select supervisor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {supervisors.map((supervisor) => (
-                    <SelectItem key={supervisor.id} value={supervisor.full_name}>
-                      {supervisor.full_name}
-                    </SelectItem>
-                  ))}
-                  {supervisors.length === 0 && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No supervisors available
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={formData.from_person}
+                  onValueChange={(value) => setFormData({ ...formData, from_person: value })}
+                  disabled={loading}
+                >
+                  <SelectTrigger className={errors.from_person ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="Select user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {transactionUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.full_name}>
+                        {user.full_name}
+                      </SelectItem>
+                    ))}
+                    {transactionUsers.length === 0 && (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No users available
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+                {isRole(['boss', 'admin']) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowAddSupervisorDialog(true)}
+                    title="Add new user"
+                    disabled={loading}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
               {errors.from_person && (
                 <p className="text-xs text-destructive">{errors.from_person}</p>
               )}
@@ -408,6 +479,102 @@ export default function NewExpense() {
             </Button>
             <Button type="button" onClick={handleAddBeneficiary}>
               Add Beneficiary
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Supervisor Dialog */}
+      <Dialog open={showAddSupervisorDialog} onOpenChange={setShowAddSupervisorDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account for transaction tracking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="supervisor_name">Full Name *</Label>
+              <Input
+                id="supervisor_name"
+                placeholder="Enter full name"
+                value={newSupervisorData.full_name}
+                onChange={(e) => setNewSupervisorData({ ...newSupervisorData, full_name: e.target.value })}
+                disabled={addingSupervisor}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supervisor_email">Email *</Label>
+              <Input
+                id="supervisor_email"
+                type="email"
+                placeholder="Enter email address"
+                value={newSupervisorData.email}
+                onChange={(e) => setNewSupervisorData({ ...newSupervisorData, email: e.target.value })}
+                disabled={addingSupervisor}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supervisor_role">Role *</Label>
+              <Select
+                value={newSupervisorData.role}
+                onValueChange={(value: 'boss' | 'admin' | 'md') => 
+                  setNewSupervisorData({ ...newSupervisorData, role: value })
+                }
+                disabled={addingSupervisor}
+              >
+                <SelectTrigger id="supervisor_role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="boss">Owner</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="md">Supervisor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supervisor_password">Password *</Label>
+              <Input
+                id="supervisor_password"
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={newSupervisorData.password}
+                onChange={(e) => setNewSupervisorData({ ...newSupervisorData, password: e.target.value })}
+                disabled={addingSupervisor}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supervisor_phone">Phone (Optional)</Label>
+              <Input
+                id="supervisor_phone"
+                placeholder="Enter phone number"
+                value={newSupervisorData.phone}
+                onChange={(e) => setNewSupervisorData({ ...newSupervisorData, phone: e.target.value })}
+                disabled={addingSupervisor}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                setShowAddSupervisorDialog(false);
+                setNewSupervisorData({ full_name: '', email: '', password: '', phone: '', role: 'md' });
+              }}
+              disabled={addingSupervisor}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleAddSupervisor}
+              disabled={addingSupervisor}
+            >
+              {addingSupervisor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add User
             </Button>
           </DialogFooter>
         </DialogContent>

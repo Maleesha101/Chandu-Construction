@@ -93,10 +93,37 @@ router.put('/:id',
       const { id } = req.params;
       const { name, location, code, active } = req.body;
 
+      // Build dynamic update query based on provided fields
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (name !== undefined) {
+        updates.push(`name = $${paramIndex++}`);
+        values.push(name);
+      }
+      if (location !== undefined) {
+        updates.push(`location = $${paramIndex++}`);
+        values.push(location);
+      }
+      if (code !== undefined) {
+        updates.push(`code = $${paramIndex++}`);
+        values.push(code);
+      }
+      if (active !== undefined) {
+        updates.push(`active = $${paramIndex++}`);
+        values.push(active);
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ error: 'No fields to update' });
+      }
+
+      values.push(id);
       const result = await query(
-        `UPDATE sites SET name = $1, location = $2, code = $3, active = $4
-         WHERE id = $5 RETURNING *`,
-        [name, location, code, active, id]
+        `UPDATE sites SET ${updates.join(', ')}
+         WHERE id = $${paramIndex} RETURNING *`,
+        values
       );
 
       if (result.rows.length === 0) {

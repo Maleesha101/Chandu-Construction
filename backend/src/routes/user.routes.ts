@@ -42,6 +42,25 @@ router.get('/supervisors',
   }
 );
 
+// Get all users who can make transactions (boss, admin, md)
+router.get('/transaction-users',
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const result = await query(
+        `SELECT id, email, full_name, phone, role, active, created_at
+        FROM users
+        WHERE role IN ('boss', 'admin', 'md') AND active = true
+        ORDER BY full_name`
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching transaction users:', error);
+      res.status(500).json({ error: 'Failed to fetch transaction users' });
+    }
+  }
+);
+
 // Get current user profile
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {

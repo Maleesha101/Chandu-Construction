@@ -168,6 +168,10 @@ export const userApi = {
     return apiFetch('/users/supervisors');
   },
 
+  async getTransactionUsers() {
+    return apiFetch('/users/transaction-users');
+  },
+
   async getMe() {
     return apiFetch('/users/me');
   },
