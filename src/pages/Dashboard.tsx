@@ -117,14 +117,7 @@ export default function Dashboard() {
             </Link>
           </Button>
         )}
-        {isRole('boss') && (
-          <Button asChild variant="outline" className="gap-2">
-            <Link to="/funding/new">
-              <Wallet className="h-4 w-4" />
-              Add Funding
-            </Link>
-          </Button>
-        )}
+    
         <Button asChild variant="outline" className="gap-2">
           <Link to="/reports">
             <TrendingUp className="h-4 w-4" />
