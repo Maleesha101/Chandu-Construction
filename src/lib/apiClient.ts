@@ -177,7 +177,7 @@ export const userApi = {
   },
 
   async createUser(userData: { email: string; password: string; full_name: string; phone?: string; role: string }) {
-    return apiFetch('/auth/register', {
+    return apiFetch('/users', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -187,6 +187,13 @@ export const userApi = {
     return apiFetch(`/users/${id}/role`, {
       method: 'PATCH',
       body: JSON.stringify({ role }),
+    });
+  },
+
+  async toggleActive(id: string, active: boolean) {
+    return apiFetch(`/users/${id}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ active }),
     });
   },
 };

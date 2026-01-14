@@ -31,7 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppRole } from '@/lib/types';
-import { Users as UsersIcon, Loader2, Shield, Mail, UserPlus, Key, Copy, Eye, EyeOff } from 'lucide-react';
+import { Users as UsersIcon, Loader2, Shield, Mail, UserPlus, Key, Copy, Eye, EyeOff, Ban, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { userApi } from '@/lib/apiClient';
 import { toast } from 'sonner';
@@ -57,6 +57,7 @@ interface User {
   email: string;
   full_name: string;
   role: AppRole;
+  active: boolean;
   created_at: string;
 }
 
@@ -100,6 +101,21 @@ export default function Users() {
     } catch (error) {
       console.error('Error updating role:', error);
       toast.error('Failed to update user role');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleToggleActive = async (userId: string, currentActive: boolean) => {
+    const action = currentActive ? 'block' : 'activate';
+    setUpdating(userId);
+    try {
+      await userApi.toggleActive(userId, !currentActive);
+      toast.success(`User ${action}ed successfully`);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error toggling user status:', error);
+      toast.error(error.message || `Failed to ${action} user`);
     } finally {
       setUpdating(null);
     }
@@ -374,6 +390,7 @@ export default function Users() {
                 <TableHead>User</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -409,17 +426,32 @@ export default function Users() {
                       <Badge variant="secondary">No Role</Badge>
                     )}
                   </TableCell>
+                  <TableCell>
+                    <Badge variant={user.active ? "default" : "destructive"} className={user.active ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}>
+                      {user.active ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Active
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="h-3 w-3 mr-1" />
+                          Blocked
+                        </>
+                      )}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <div onClick={(e) => e.stopPropagation()} className="flex gap-2 justify-end items-center">
                       <Select
                         value={user.role}
                         onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
                         disabled={updating === user.id}
                       >
-                        <SelectTrigger className="w-[140px] ml-auto">
+                        <SelectTrigger className="w-[140px]">
                           <SelectValue placeholder="Change role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -430,6 +462,26 @@ export default function Users() {
                           <SelectItem value="viewer">Viewer</SelectItem>
                         </SelectContent>
                       </Select>
+                      <Button
+                        variant={user.active ? "destructive" : "default"}
+                        size="sm"
+                        onClick={() => handleToggleActive(user.id, user.active)}
+                        disabled={updating === user.id}
+                      >
+                        {updating === user.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : user.active ? (
+                          <>
+                            <Ban className="h-4 w-4 mr-1" />
+                            Block
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Activate
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
