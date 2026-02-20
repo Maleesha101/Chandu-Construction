@@ -1,0 +1,300 @@
+###################################################
+# Chandu Construction API Endpoints
+# Base URL: http://localhost:5000
+###################################################
+
+@baseUrl = http://localhost:5000
+@token =qVShc3iQo3+5FGaPxy4XZtdy4KhTICKyJsw7HqDGS0qOJ+hKwwJU33jUHVSDMAONMFMe3yGKe+n1Tycy92W1Vg==
+
+
+###################################################
+# HEALTH CHECK
+###################################################
+
+### Health Check
+GET {{baseUrl}}/api/health
+
+
+###################################################
+# AUTHENTICATION
+###################################################
+
+### Register User
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123",
+  "full_name": "Test User",
+  "phone": "0771234567",
+  "role": "admin"
+}
+
+### Login
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+
+###################################################
+# USER MANAGEMENT
+###################################################
+
+### Get All Users (boss/admin only)
+GET {{baseUrl}}/api/users
+Authorization: Bearer {{token}}
+
+### Get All Supervisors (MD role users)
+GET {{baseUrl}}/api/users/supervisors
+Authorization: Bearer {{token}}
+
+### Get Transaction Users (boss/admin/md only)
+GET {{baseUrl}}/api/users/transaction-users
+Authorization: Bearer {{token}}
+
+### Get Current User Profile
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{token}}
+
+### Update User Role (boss only)
+# Replace :id with actual user UUID
+PATCH {{baseUrl}}/api/users/550e8400-e29b-41d4-a716-446655440000/role
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "role": "qs"
+}
+
+
+###################################################
+# SITE MANAGEMENT
+###################################################
+
+### Get All Sites
+GET {{baseUrl}}/api/sites
+Authorization: Bearer {{token}}
+
+### Get Active Sites Only
+GET {{baseUrl}}/api/sites?active=true
+Authorization: Bearer {{token}}
+
+### Create Site (boss/admin only)
+POST {{baseUrl}}/api/sites
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "New Construction Site",
+  "location": "Colombo 05",
+  "code": "SITE001"
+}
+
+### Update Site (boss/admin only)
+# Replace :id with actual site UUID
+PUT {{baseUrl}}/api/sites/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Site Name",
+  "location": "Colombo 07",
+  "code": "SITE001",
+  "active": true
+}
+
+
+###################################################
+# EXPENSE MANAGEMENT
+###################################################
+
+### Get All Expenses
+GET {{baseUrl}}/api/expenses
+Authorization: Bearer {{token}}
+
+### Get Expenses with Filters
+GET {{baseUrl}}/api/expenses?status=pending&site_id=550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+
+### Get Expenses by Date Range
+GET {{baseUrl}}/api/expenses?start_date=2024-01-01&end_date=2024-12-31
+Authorization: Bearer {{token}}
+
+### Get Expense by ID
+# Replace :id with actual expense UUID
+GET {{baseUrl}}/api/expenses/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+
+### Create Expense (boss/admin only)
+POST {{baseUrl}}/api/expenses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "to_name": "Supplier Name",
+  "purpose": "Building materials purchase",
+  "amount": 25000,
+  "site_id": "550e8400-e29b-41d4-a716-446655440000",
+  "from_bank_account_id": "550e8400-e29b-41d4-a716-446655440001",
+  "md_id": "550e8400-e29b-41d4-a716-446655440002",
+  "payment_method": "bank_transfer",
+  "reference": "INV-2024-001",
+  "entry_date": "2024-01-15",
+  "from_person_name": "John Doe"
+}
+
+### Create Cash Expense
+POST {{baseUrl}}/api/expenses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "to_name": "Worker Name",
+  "purpose": "Daily labor payment",
+  "amount": 5000,
+  "site_id": "550e8400-e29b-41d4-a716-446655440000",
+  "payment_method": "cash",
+  "entry_date": "2024-01-15"
+}
+
+### Update Expense Status - Admin Approval
+# Replace :id with actual expense UUID
+PATCH {{baseUrl}}/api/expenses/550e8400-e29b-41d4-a716-446655440000/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "approved",
+  "comments": "Approved by admin"
+}
+
+### Update Expense Status - Reject
+PATCH {{baseUrl}}/api/expenses/550e8400-e29b-41d4-a716-446655440000/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "rejected",
+  "comments": "Insufficient documentation"
+}
+
+### Update Expense Status - QS Approval
+PATCH {{baseUrl}}/api/expenses/550e8400-e29b-41d4-a716-446655440000/status
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "wd_approved",
+  "comments": "Approved by QS"
+}
+
+### Delete Expense (boss only)
+# Replace :id with actual expense UUID
+DELETE {{baseUrl}}/api/expenses/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+
+
+###################################################
+# BANK ACCOUNT MANAGEMENT
+###################################################
+
+### Get All Bank Accounts
+GET {{baseUrl}}/api/banks
+Authorization: Bearer {{token}}
+
+### Create Bank Account (boss only)
+POST {{baseUrl}}/api/banks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Company Main Account",
+  "bank_name": "Commercial Bank",
+  "account_number": "1234567890",
+  "balance": 1000000,
+  "currency": "LKR"
+}
+
+### Update Bank Account (boss only)
+# Replace :id with actual bank account UUID
+PUT {{baseUrl}}/api/banks/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Account Name",
+  "bank_name": "Bank of Ceylon",
+  "account_number": "9876543210",
+  "balance": 1500000,
+  "currency": "LKR",
+  "active": true
+}
+
+### Bank Transfer (boss only)
+POST {{baseUrl}}/api/banks/transfer
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "from_account_id": "550e8400-e29b-41d4-a716-446655440000",
+  "to_account_id": "550e8400-e29b-41d4-a716-446655440001",
+  "amount": 50000,
+  "description": "Transfer for site expenses"
+}
+
+### Get Transfer History
+GET {{baseUrl}}/api/banks/transfers
+Authorization: Bearer {{token}}
+
+
+###################################################
+# MANAGING DIRECTORS (SUPERVISORS)
+###################################################
+
+### Get All Managing Directors
+GET {{baseUrl}}/api/managing-directors
+Authorization: Bearer {{token}}
+
+
+###################################################
+# APPROVALS
+###################################################
+
+### Get Approvals for a Record
+# Replace :recordId with actual expense UUID
+GET {{baseUrl}}/api/approvals/record/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer {{token}}
+
+
+###################################################
+# NOTES
+###################################################
+
+# Available Roles:
+# - boss: Full access to all features
+# - admin: Can manage expenses, users, sites (except certain boss-only features)
+# - qs: QS approval workflow (wd_pending -> wd_approved/wd_rejected)
+# - md: Managing Director/Supervisor
+# - viewer: Read-only access
+
+# Expense Status Flow:
+# pending -> approved/rejected (by admin/boss)
+# wd_pending -> wd_approved/wd_rejected (by QS)
+
+# Payment Methods:
+# - cash
+# - bank_transfer
+# - bank_account
+# - bank
+
+# To use these endpoints:
+# 1. First login to get a JWT token
+# 2. Replace {{token}} with your actual JWT token
+# 3. Replace UUIDs in URLs with actual IDs from your database
+# 4. Adjust the baseUrl if your server runs on a different port
