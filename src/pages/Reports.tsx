@@ -8,9 +8,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BarChart3, Download, FileText, TrendingUp, Wallet, PieChart } from 'lucide-react';
+import { BarChart3, Download, FileText, TrendingUp, Wallet, PieChart, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const reportTypes = [
+  {
+    id: 'ledger',
+    name: 'Ledger Accounts',
+    description: 'Double-entry bookkeeping and account balances',
+    icon: BookOpen,
+    link: '/ledger',
+  },
   {
     id: 'weekly-summary',
     name: 'Weekly Summary',
@@ -46,6 +54,15 @@ const reportTypes = [
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [period, setPeriod] = useState('this-week');
+  const navigate = useNavigate();
+
+  const handleReportClick = (report: typeof reportTypes[0]) => {
+    if (report.link) {
+      navigate(report.link);
+    } else {
+      setSelectedReport(report.id);
+    }
+  };
 
   return (
     <DashboardLayout title="Reports" description="Generate and export financial reports">
@@ -71,7 +88,7 @@ export default function Reports() {
         {reportTypes.map((report) => (
           <button
             key={report.id}
-            onClick={() => setSelectedReport(report.id)}
+            onClick={() => handleReportClick(report)}
             className={`stat-card text-left transition-all ${
               selectedReport === report.id
                 ? 'ring-2 ring-primary border-primary'

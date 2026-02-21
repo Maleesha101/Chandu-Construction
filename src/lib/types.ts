@@ -107,6 +107,75 @@ export interface LedgerEntry {
   created_at: string;
 }
 
+export type AccountType = 'asset' | 'liability' | 'expense' | 'revenue';
+export type AccountCategory = 'bank' | 'supervisor' | 'machine' | 'rent' | 'general';
+
+export interface LedgerAccount {
+  id: string;
+  account_code: string;
+  account_name: string;
+  account_type: AccountType;
+  account_category: AccountCategory;
+  parent_account_id: string | null;
+  reference_id: string | null;
+  balance: number;
+  active: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  bank_account_name?: string;
+  bank_name?: string;
+  supervisor_name?: string;
+  transaction_count?: number;
+}
+
+export interface LedgerEntryDetail {
+  id: string;
+  transaction_date: string;
+  account_id: string;
+  expense_record_id: string | null;
+  debit: number;
+  credit: number;
+  balance_after: number | null;
+  description: string | null;
+  reference_number: string | null;
+  created_by: string | null;
+  created_at: string;
+  // Joined fields
+  expense_date?: string;
+  expense_to_name?: string;
+  expense_purpose?: string;
+  expense_amount?: number;
+  site_name?: string;
+  created_by_name?: string;
+}
+
+export interface TrialBalance {
+  accounts: {
+    id: string;
+    account_code: string;
+    account_name: string;
+    account_type: AccountType;
+    account_category: AccountCategory;
+    total_debit: number;
+    total_credit: number;
+    current_balance: number;
+  }[];
+  totals: {
+    totalDebit: number;
+    totalCredit: number;
+  };
+  balanced: boolean;
+}
+
+export interface ExpenseBreakdown {
+  account_category: AccountCategory;
+  account_name: string;
+  expense_count: number;
+  total_amount: number;
+}
+
 export interface Approval {
   id: string;
   record_id: string;

@@ -98,6 +98,7 @@ export default function NewExpense() {
           userApi.getSupervisors(),
         ]);
 
+        console.log('Fetched sites:', sitesData); // Debug log
         setBankAccounts(banks);
         setSites(sitesData);
         setTransactionUsers(usersData);
@@ -389,7 +390,7 @@ export default function NewExpense() {
 
             {/* Beneficiary */}
             <div className="space-y-2">
-              <Label htmlFor="beneficiary">Beneficiary (To) *</Label>
+              <Label htmlFor="beneficiary">Expense Category / Beneficiary (To) *</Label>
               <div className="flex gap-2">
                 <Select
                   value={formData.beneficiary}
@@ -397,14 +398,30 @@ export default function NewExpense() {
                   disabled={loading}
                 >
                   <SelectTrigger className={errors.beneficiary ? 'border-destructive' : ''}>
-                    <SelectValue placeholder="Select beneficiary" />
+                    <SelectValue placeholder="Select expense category or beneficiary" />
                   </SelectTrigger>
                   <SelectContent>
-                    {beneficiaries.map((supervisor) => (
-                      <SelectItem key={supervisor.id} value={supervisor.full_name}>
-                        {supervisor.full_name}
-                      </SelectItem>
-                    ))}
+                    {/* Expense Categories */}
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
+                      💰 Expense Categories (Ledger)
+                    </div>
+                    <SelectItem value="Machine">🔧 Machine - Equipment & Machinery</SelectItem>
+                    <SelectItem value="Rent">🏠 Rent - Rental Payments</SelectItem>
+                    
+                    {/* Supervisors/Beneficiaries */}
+                    {beneficiaries.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-2">
+                          👥 Payment to Supervisors
+                        </div>
+                        {beneficiaries.map((supervisor) => (
+                          <SelectItem key={supervisor.id} value={supervisor.full_name}>
+                            {supervisor.full_name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                    
                     {beneficiaries.length === 0 && (
                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
                         No supervisors available
@@ -428,6 +445,11 @@ export default function NewExpense() {
               {errors.beneficiary && (
                 <p className="text-xs text-destructive">{errors.beneficiary}</p>
               )}
+              <p className="text-xs text-muted-foreground">
+                💡 <strong>Machine/Rent:</strong> Creates categorized expense entries in ledger (debit only).
+                <br />
+                💡 <strong>Supervisor:</strong> Payment tracked to specific person.
+              </p>
             </div>
 
             {/* Site */}
@@ -442,11 +464,17 @@ export default function NewExpense() {
                   <SelectValue placeholder="Select site" />
                 </SelectTrigger>
                 <SelectContent>
-                  {sites.map((site) => (
-                    <SelectItem key={site.id} value={site.id}>
-                      {site.name} {site.code && `(${site.code})`}
-                    </SelectItem>
-                  ))}
+                  {sites.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No sites available. Please add sites first.
+                    </div>
+                  ) : (
+                    sites.map((site) => (
+                      <SelectItem key={site.id} value={site.id}>
+                        {site.name} {site.code && `(${site.code})`}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {errors.site_id && (

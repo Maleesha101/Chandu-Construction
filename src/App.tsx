@@ -14,6 +14,7 @@ import NewExpense from "./pages/NewExpense";
 import Approvals from "./pages/Approvals";
 import QSQueue from "./pages/QSQueue";
 import Reports from "./pages/Reports";
+import Ledger from "./pages/Ledger";
 import Sites from "./pages/Sites";
 import SiteExpenses from "./pages/SiteExpenses";
 import Users from "./pages/Users";
@@ -45,6 +46,11 @@ const App = () => (
             <Route path="/approvals" element={<Approvals />} />
             <Route path="/qs-queue" element={<QSQueue />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/ledger" element={
+              <ProtectedRoute allowedRoles={['boss', 'admin']}>
+                <Ledger />
+              </ProtectedRoute>
+            } />
             <Route path="/sites" element={<Sites />} />
             <Route path="/sites/:siteId" element={<SiteExpenses />} />
             <Route path="/users" element={<Users />} />

@@ -235,3 +235,46 @@ export const approvalApi = {
     return apiFetch(`/approvals/record/${recordId}`);
   },
 };
+
+// Ledger API
+export const ledgerApi = {
+  async getAccounts() {
+    return apiFetch('/ledger/accounts');
+  },
+
+  async getAccountById(id: string) {
+    return apiFetch(`/ledger/accounts/${id}`);
+  },
+
+  async getAccountEntries(id: string, params?: { startDate?: string; endDate?: string; limit?: number }) {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const query = queryParams.toString();
+    return apiFetch(`/ledger/accounts/${id}/entries${query ? `?${query}` : ''}`);
+  },
+
+  async getSummary() {
+    return apiFetch('/ledger/summary');
+  },
+
+  async getTrialBalance(params?: { startDate?: string; endDate?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    
+    const query = queryParams.toString();
+    return apiFetch(`/ledger/trial-balance${query ? `?${query}` : ''}`);
+  },
+
+  async getExpenseBreakdown(params?: { startDate?: string; endDate?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    
+    const query = queryParams.toString();
+    return apiFetch(`/ledger/expense-breakdown${query ? `?${query}` : ''}`);
+  },
+};

@@ -6,6 +6,7 @@ import {
     FileCheck,
     Wallet,
     BarChart3,
+    BookOpen,
     Building2,
     Users,
     Settings,
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Approvals', href: '/approvals', icon: CheckCircle, roles: ['boss'] },
   { name: 'QS Queue', href: '/qs-queue', icon: FileCheck, roles: ['qs', 'boss'] },
   { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['boss', 'admin'] },
+  { name: 'Ledger', href: '/ledger', icon: BookOpen, roles: ['boss', 'admin'] },
   { name: 'Sites', href: '/sites', icon: Building2, roles: ['boss', 'admin'] },
   { name: 'Users', href: '/users', icon: Users, roles: ['boss'] },
 ];
