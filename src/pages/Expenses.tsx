@@ -228,8 +228,8 @@ export default function Expenses() {
                   <TableCell className="max-w-[200px] truncate">
                     {expense.purpose}
                   </TableCell>
-                  <TableCell>{(expense as any).sites?.name || '-'}</TableCell>
-                  <TableCell>{(expense as any).bank_accounts?.name || 'Cash'}</TableCell>
+                  <TableCell>{expense.site_name || '-'}</TableCell>
+                  <TableCell>{expense.bank_name || 'Cash'}</TableCell>
                   <TableCell className="text-right font-medium">
                     {formatCurrency(Number(expense.amount))}
                   </TableCell>
