@@ -182,22 +182,364 @@ router.get('/transfers',
   authenticate,
   async (req: AuthRequest, res: Response) => {
     try {
-      const result = await query(
-        `SELECT 
+      const { account_id } = req.query;
+      
+      let queryText = `SELECT 
           t.*,
           fa.name as from_account_name,
           fa.bank_name as from_bank_name,
           ta.name as to_account_name,
-          ta.bank_name as to_bank_name
+          ta.bank_name as to_bank_name,
+          c.cheque_number,
+          c.payee_name
          FROM bank_transfers t
          LEFT JOIN bank_accounts fa ON t.from_account_id = fa.id
          LEFT JOIN bank_accounts ta ON t.to_account_id = ta.id
-         ORDER BY t.transfer_date DESC`
-      );
+         LEFT JOIN cheques c ON t.cheque_id = c.id`;
+      
+      const params: any[] = [];
+      if (account_id) {
+        queryText += ` WHERE t.from_account_id = $1 OR t.to_account_id = $1`;
+        params.push(account_id);
+      }
+      
+      queryText += ` ORDER BY t.transfer_date DESC`;
+      
+      const result = await query(queryText, params);
       res.json(result.rows);
     } catch (error) {
       console.error('Error fetching transfers:', error);
       res.status(500).json({ error: 'Failed to fetch transfer history' });
+    }
+  }
+);
+
+// Get account transactions (credits and debits)
+router.get('/:id/transactions',
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const result = await query(
+        `SELECT 
+          t.*,
+          fa.name as from_account_name,
+          ta.name as to_account_name,
+          c.cheque_number,
+          c.payee_name,
+          CASE 
+            WHEN t.to_account_id = $1 THEN 'credit'
+            WHEN t.from_account_id = $1 THEN 'debit'
+          END as transaction_type
+         FROM bank_transfers t
+         LEFT JOIN bank_accounts fa ON t.from_account_id = fa.id
+         LEFT JOIN bank_accounts ta ON t.to_account_id = ta.id
+         LEFT JOIN cheques c ON t.cheque_id = c.id
+         WHERE t.from_account_id = $1 OR t.to_account_id = $1
+         ORDER BY t.transfer_date DESC`,
+        [id]
+      );
+      
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching account transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch account transactions' });
+    }
+  }
+);
+
+// ============== CHEQUE MANAGEMENT ==============
+
+// Get all cheques
+router.get('/cheques',
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { bank_account_id, status } = req.query;
+      
+      let queryText = `SELECT 
+          c.*,
+          ba.name as bank_account_name,
+          ba.bank_name,
+          da.name as deposited_to_account_name,
+          u.full_name as created_by_name
+         FROM cheques c
+         LEFT JOIN bank_accounts ba ON c.bank_account_id = ba.id
+         LEFT JOIN bank_accounts da ON c.deposited_to_account_id = da.id
+         LEFT JOIN users u ON c.created_by = u.id
+         WHERE 1=1`;
+      
+      const params: any[] = [];
+      let paramIndex = 1;
+      
+      if (bank_account_id) {
+        queryText += ` AND c.bank_account_id = $${paramIndex++}`;
+        params.push(bank_account_id);
+      }
+      
+      if (status) {
+        queryText += ` AND c.status = $${paramIndex++}`;
+        params.push(status);
+      }
+      
+      queryText += ` ORDER BY c.created_at DESC`;
+      
+      const result = await query(queryText, params);
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching cheques:', error);
+      res.status(500).json({ error: 'Failed to fetch cheques' });
+    }
+  }
+);
+
+// Create cheque and automatically deposit to account
+router.post('/cheques',
+  authenticate,
+  authorize('boss', 'admin'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { 
+        cheque_number, 
+        payee_name, 
+        amount, 
+        cheque_date, 
+        description,
+        deposit_to_account_id 
+      } = req.body;
+
+      if (!cheque_number || !payee_name || !amount || !cheque_date || !deposit_to_account_id) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      if (amount <= 0) {
+        return res.status(400).json({ error: 'Amount must be greater than 0' });
+      }
+
+      // Start transaction
+      await query('BEGIN');
+
+      try {
+        // Create cheque record
+        const chequeResult = await query(
+          `INSERT INTO cheques 
+           (cheque_number, payee_name, amount, cheque_date, description, created_by, status, deposit_date, deposited_to_account_id)
+           VALUES ($1, $2, $3, $4, $5, $6, 'deposited', $4, $7) 
+           RETURNING *`,
+          [cheque_number, payee_name, amount, cheque_date, description || null, req.user?.userId, deposit_to_account_id]
+        );
+
+        const cheque = chequeResult.rows[0];
+
+        // Update destination account balance
+        await query(
+          'UPDATE bank_accounts SET balance = balance + $1 WHERE id = $2',
+          [amount, deposit_to_account_id]
+        );
+
+        // Create bank transfer record (from_account_id is NULL for external cheques)
+        await query(
+          `INSERT INTO bank_transfers 
+           (from_account_id, to_account_id, amount, description, transfer_date, cheque_id, transfer_type)
+           VALUES ($1, $2, $3, $4, $5, $6, 'cheque_deposit')`,
+          [
+            null,
+            deposit_to_account_id,
+            amount,
+            `Cheque #${cheque_number} from ${payee_name}`,
+            cheque_date,
+            cheque.id
+          ]
+        );
+
+        await query('COMMIT');
+
+        res.status(201).json(cheque);
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error creating cheque:', error);
+      res.status(500).json({ error: 'Failed to create cheque' });
+    }
+  }
+);
+
+// Update cheque
+router.put('/cheques/:id',
+  authenticate,
+  authorize('boss', 'admin'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { cheque_number, payee_name, amount, cheque_date, description, status } = req.body;
+
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (cheque_number !== undefined) {
+        updates.push(`cheque_number = $${paramIndex++}`);
+        values.push(cheque_number);
+      }
+      if (payee_name !== undefined) {
+        updates.push(`payee_name = $${paramIndex++}`);
+        values.push(payee_name);
+      }
+      if (amount !== undefined) {
+        updates.push(`amount = $${paramIndex++}`);
+        values.push(amount);
+      }
+      if (cheque_date !== undefined) {
+        updates.push(`cheque_date = $${paramIndex++}`);
+        values.push(cheque_date);
+      }
+      if (description !== undefined) {
+        updates.push(`description = $${paramIndex++}`);
+        values.push(description);
+      }
+      if (status !== undefined) {
+        updates.push(`status = $${paramIndex++}`);
+        values.push(status);
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ error: 'No fields to update' });
+      }
+
+      values.push(id);
+      const result = await query(
+        `UPDATE cheques SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Cheque not found' });
+      }
+
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error updating cheque:', error);
+      res.status(500).json({ error: 'Failed to update cheque' });
+    }
+  }
+);
+
+// Deposit cheque to bank account
+router.post('/cheques/:id/deposit',
+  authenticate,
+  authorize('boss', 'admin'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { to_account_id, deposit_date } = req.body;
+
+      if (!to_account_id) {
+        return res.status(400).json({ error: 'Destination account is required' });
+      }
+
+      // Start transaction
+      await query('BEGIN');
+
+      try {
+        // Get cheque details
+        const chequeResult = await query(
+          'SELECT * FROM cheques WHERE id = $1',
+          [id]
+        );
+
+        if (chequeResult.rows.length === 0) {
+          throw new Error('Cheque not found');
+        }
+
+        const cheque = chequeResult.rows[0];
+
+        if (cheque.status !== 'pending') {
+          throw new Error('Cheque has already been processed or cancelled');
+        }
+
+        // Update destination account balance
+        await query(
+          'UPDATE bank_accounts SET balance = balance + $1 WHERE id = $2',
+          [cheque.amount, to_account_id]
+        );
+
+        // Create bank transfer record
+        const transferResult = await query(
+          `INSERT INTO bank_transfers 
+           (from_account_id, to_account_id, amount, description, transfer_date, cheque_id, transfer_type)
+           VALUES ($1, $2, $3, $4, $5, $6, 'cheque_deposit') 
+           RETURNING *`,
+          [
+            cheque.bank_account_id,
+            to_account_id,
+            cheque.amount,
+            `Cheque #${cheque.cheque_number} from ${cheque.payee_name}`,
+            deposit_date || new Date().toISOString(),
+            id
+          ]
+        );
+
+        // Update cheque status
+        const updatedCheque = await query(
+          `UPDATE cheques 
+           SET status = 'deposited', 
+               deposit_date = $1,
+               deposited_to_account_id = $2
+           WHERE id = $3 
+           RETURNING *`,
+          [deposit_date || new Date().toISOString(), to_account_id, id]
+        );
+
+        await query('COMMIT');
+
+        res.json({
+          message: 'Cheque deposited successfully',
+          cheque: updatedCheque.rows[0],
+          transfer: transferResult.rows[0]
+        });
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Error depositing cheque:', error);
+      res.status(500).json({ 
+        error: error.message || 'Failed to deposit cheque' 
+      });
+    }
+  }
+);
+
+// Cancel cheque
+router.post('/cheques/:id/cancel',
+  authenticate,
+  authorize('boss', 'admin'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const result = await query(
+        `UPDATE cheques 
+         SET status = 'cancelled' 
+         WHERE id = $1 AND status = 'pending'
+         RETURNING *`,
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Cheque not found or already processed' });
+      }
+
+      res.json({
+        message: 'Cheque cancelled successfully',
+        cheque: result.rows[0]
+      });
+    } catch (error) {
+      console.error('Error cancelling cheque:', error);
+      res.status(500).json({ error: 'Failed to cancel cheque' });
     }
   }
 );

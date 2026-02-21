@@ -146,8 +146,46 @@ export const bankApi = {
     });
   },
 
-  async getTransfers() {
-    return apiFetch('/banks/transfers');
+  async getTransfers(account_id?: string) {
+    const queryString = account_id ? `?account_id=${account_id}` : '';
+    return apiFetch(`/banks/transfers${queryString}`);
+  },
+
+  async getAccountTransactions(id: string) {
+    return apiFetch(`/banks/${id}/transactions`);
+  },
+
+  // Cheque management
+  async getCheques(params?: { bank_account_id?: string; status?: string }) {
+    const queryString = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return apiFetch(`/banks/cheques${queryString}`);
+  },
+
+  async createCheque(cheque: any) {
+    return apiFetch('/banks/cheques', {
+      method: 'POST',
+      body: JSON.stringify(cheque),
+    });
+  },
+
+  async updateCheque(id: string, cheque: any) {
+    return apiFetch(`/banks/cheques/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(cheque),
+    });
+  },
+
+  async depositCheque(id: string, to_account_id: string, deposit_date?: string) {
+    return apiFetch(`/banks/cheques/${id}/deposit`, {
+      method: 'POST',
+      body: JSON.stringify({ to_account_id, deposit_date }),
+    });
+  },
+
+  async cancelCheque(id: string) {
+    return apiFetch(`/banks/cheques/${id}/cancel`, {
+      method: 'POST',
+    });
   },
 };
 
