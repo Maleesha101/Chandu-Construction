@@ -245,6 +245,12 @@ export const userApi = {
       body: JSON.stringify({ role }),
     });
   },
+
+  async delete(id: string) {
+    return apiFetch(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Approval API

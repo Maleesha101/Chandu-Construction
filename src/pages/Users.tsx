@@ -27,11 +27,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppRole } from '@/lib/types';
-import { Users as UsersIcon, Loader2, Shield, Mail, UserPlus, Key, Copy, Eye, EyeOff } from 'lucide-react';
+import { Users as UsersIcon, Loader2, Shield, Mail, UserPlus, Key, Copy, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { userApi } from '@/lib/apiClient';
 import { toast } from 'sonner';
@@ -67,7 +77,12 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);    const [showPassword, setShowPassword] = useState(false);  const [formData, setFormData] = useState({
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [formData, setFormData] = useState({
     email: '',
     password: '',
     full_name: '',
@@ -137,6 +152,24 @@ export default function Users() {
     if (formData.password) {
       await navigator.clipboard.writeText(formData.password);
       toast.success('Password copied to clipboard!');
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setDeleting(true);
+    try {
+      await userApi.delete(userToDelete.id);
+      toast.success(`User "${userToDelete.full_name}" deleted successfully`);
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error(error.message || 'Failed to delete user');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -413,13 +446,13 @@ export default function Users() {
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-2">
                       <Select
                         value={user.role}
                         onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
                         disabled={updating === user.id}
                       >
-                        <SelectTrigger className="w-[140px] ml-auto">
+                        <SelectTrigger className="w-[140px]">
                           <SelectValue placeholder="Change role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -430,6 +463,19 @@ export default function Users() {
                           <SelectItem value="viewer">Viewer</SelectItem>
                         </SelectContent>
                       </Select>
+                      {isRole(['boss']) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setUserToDelete(user);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -438,6 +484,47 @@ export default function Users() {
           </Table>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {userToDelete && (
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Name:</span>
+                <span className="text-sm font-medium">{userToDelete.full_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Email:</span>
+                <span className="text-sm font-medium">{userToDelete.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Role:</span>
+                <Badge className={roleColors[userToDelete.role]}>
+                  {roleLabels[userToDelete.role]}
+                </Badge>
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
