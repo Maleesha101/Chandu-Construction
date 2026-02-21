@@ -251,6 +251,20 @@ export const userApi = {
       method: 'DELETE',
     });
   },
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return apiFetch('/users/me/password', {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+
+  async changeEmail(newEmail: string, password: string) {
+    return apiFetch('/users/me/email', {
+      method: 'PATCH',
+      body: JSON.stringify({ newEmail, password }),
+    });
+  },
 };
 
 // Approval API

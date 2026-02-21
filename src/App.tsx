@@ -21,6 +21,7 @@ import Users from "./pages/Users";
 import SupervisorDetails from "./pages/SupervisorDetails";
 import SetupRole from "./pages/SetupRole";
 import BankManagement from "./pages/BankManagement";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
                 <BankManagement />
               </ProtectedRoute>
             } />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
