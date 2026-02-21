@@ -43,13 +43,25 @@ const expenseSchema = z.object({
   beneficiary: z.string().min(1, 'Beneficiary is required'),
   purpose: z.string().min(1, 'Purpose is required').max(500),
   amount: z.number().positive('Amount must be positive'),
-  site_id: z.string().min(1, 'Site is required'),
+  site_id: z.string().optional(),
   payment_source: z.enum(['petty_cash', 'bank_account'], {
     errorMap: () => ({ message: 'Payment source is required' })
   }),
   from_bank_account_id: z.string().optional(),
   reference: z.string().optional(),
-});
+}).refine(
+  (data) => {
+    // Site is required for petty cash, optional for bank account
+    if (data.payment_source === 'petty_cash' && !data.site_id) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'Site is required for petty cash payments',
+    path: ['site_id'],
+  }
+);
 
 export default function NewExpense() {
   const navigate = useNavigate();
@@ -271,7 +283,7 @@ export default function NewExpense() {
         to_name: validatedData.beneficiary,
         purpose: validatedData.purpose,
         amount: validatedData.amount,
-        site_id: validatedData.site_id,
+        site_id: validatedData.site_id || null,
         from_bank_account_id: validatedData.payment_source === 'bank_account' ? validatedData.from_bank_account_id : null,
         md_id: null,
         payment_method: validatedData.payment_source === 'petty_cash' ? 'cash' : 'bank_transfer',
@@ -554,7 +566,12 @@ export default function NewExpense() {
 
             {/* Site */}
             <div className="space-y-2">
-              <Label htmlFor="site_id">Site *</Label>
+              <Label htmlFor="site_id">
+                Site {formData.payment_source === 'petty_cash' && '*'}
+                {formData.payment_source === 'bank_account' && (
+                  <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+                )}
+              </Label>
               <Select
                 value={formData.site_id}
                 onValueChange={(value) => setFormData({ ...formData, site_id: value })}
