@@ -42,7 +42,7 @@ router.get('/supervisors',
   }
 );
 
-// Get all users who can make transactions (boss, admin, md)
+// Get all users who can make transactions (boss, admin, md, worker)
 router.get('/transaction-users',
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -50,7 +50,7 @@ router.get('/transaction-users',
       const result = await query(
         `SELECT id, email, full_name, phone, role, active, created_at
         FROM users
-        WHERE role IN ('boss', 'admin', 'md') AND active = true
+        WHERE role IN ('boss', 'admin', 'md', 'worker') AND active = true
         ORDER BY full_name`
       );
       res.json(result.rows);

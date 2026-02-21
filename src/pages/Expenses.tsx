@@ -43,10 +43,6 @@ export default function Expenses() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [siteFilter, setSiteFilter] = useState<string>('all');
 
-  // Debug: Log user role
-  console.log('Expenses page - Current userRole:', userRole);
-  console.log('Expenses page - isRole boss/admin check:', isRole(['boss', 'admin']));
-
   useEffect(() => {
     async function fetchData() {
       try {

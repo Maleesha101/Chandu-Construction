@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { bankApi, siteApi, expenseApi, userApi } from '@/lib/apiClient';
+import { bankApi, siteApi, expenseApi, userApi, mdApi } from '@/lib/apiClient';
 import { BankAccount, ManagingDirector, Site } from '@/lib/types';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft, Plus } from 'lucide-react';
@@ -74,18 +74,15 @@ export default function NewExpense() {
     email: '',
     password: '',
     phone: '',
-    role: 'md' as 'boss' | 'admin' | 'md',
+    role: 'md' as 'admin' | 'md' | 'worker',
   });
 
   // Dialog state for adding new beneficiary
   const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
   const [addingBeneficiary, setAddingBeneficiary] = useState(false);
   const [newBeneficiaryData, setNewBeneficiaryData] = useState({
-    full_name: '',
-    email: '',
-    password: '',
+    name: '',
     phone: '',
-    role: 'boss' as 'boss' | 'admin',
   });
 
   useEffect(() => {
@@ -98,7 +95,6 @@ export default function NewExpense() {
           userApi.getSupervisors(),
         ]);
 
-        console.log('Fetched sites:', sitesData); // Debug log
         setBankAccounts(banks);
         setSites(sitesData);
         setTransactionUsers(usersData);
@@ -133,8 +129,8 @@ export default function NewExpense() {
   };
 
   const handleAddSupervisor = async () => {
-    if (!newSupervisorData.full_name.trim() || !newSupervisorData.email.trim() || !newSupervisorData.password.trim()) {
-      toast.error('Please fill in all required fields');
+    if (!newSupervisorData.full_name.trim() || !newSupervisorData.password.trim()) {
+      toast.error('Please fill in all required fields (Name and Password)');
       return;
     }
     if (newSupervisorData.password.length < 6) {
@@ -145,7 +141,7 @@ export default function NewExpense() {
     setAddingSupervisor(true);
     try {
       await userApi.createUser({
-        email: newSupervisorData.email.trim(),
+        email: newSupervisorData.email.trim() || `${newSupervisorData.full_name.trim().replace(/\s+/g, '_').toLowerCase()}@temp.local`,
         password: newSupervisorData.password,
         full_name: newSupervisorData.full_name.trim(),
         phone: newSupervisorData.phone.trim() || undefined,
@@ -170,34 +166,27 @@ export default function NewExpense() {
   };
 
   const handleAddBeneficiary = async () => {
-    if (!newBeneficiaryData.full_name.trim() || !newBeneficiaryData.email.trim() || !newBeneficiaryData.password.trim()) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-    if (newBeneficiaryData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (!newBeneficiaryData.name.trim()) {
+      toast.error('Name is required');
       return;
     }
 
     setAddingBeneficiary(true);
     try {
-      await userApi.createUser({
-        email: newBeneficiaryData.email.trim(),
-        password: newBeneficiaryData.password,
-        full_name: newBeneficiaryData.full_name.trim(),
-        phone: newBeneficiaryData.phone.trim() || undefined,
-        role: newBeneficiaryData.role,
+      const newSupervisor = await mdApi.create({
+        name: newBeneficiaryData.name.trim(),
+        contact: newBeneficiaryData.phone.trim() || undefined,
       });
 
       toast.success('Beneficiary added successfully');
       setShowAddBeneficiaryDialog(false);
-      setNewBeneficiaryData({ full_name: '', email: '', password: '', phone: '', role: 'boss' });
+      setNewBeneficiaryData({ name: '', phone: '' });
       
       // Refresh beneficiaries list
       await fetchBeneficiaries();
       
       // Auto-select the newly added beneficiary
-      setFormData({ ...formData, beneficiary: newBeneficiaryData.full_name.trim() });
+      setFormData({ ...formData, beneficiary: newBeneficiaryData.name.trim() });
     } catch (error: any) {
       console.error('Error adding beneficiary:', error);
       toast.error(error.message || 'Failed to add beneficiary');
@@ -403,16 +392,16 @@ export default function NewExpense() {
                   <SelectContent>
                     {/* Expense Categories */}
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50">
-                      💰 Expense Categories (Ledger)
+                       Expense Categories
                     </div>
-                    <SelectItem value="Machine">🔧 Machine - Equipment & Machinery</SelectItem>
-                    <SelectItem value="Rent">🏠 Rent - Rental Payments</SelectItem>
+                    <SelectItem value="Machine">Machine</SelectItem>
+                    <SelectItem value="Rent">Rent</SelectItem>
                     
                     {/* Supervisors/Beneficiaries */}
                     {beneficiaries.length > 0 && (
                       <>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-2">
-                          👥 Payment to Supervisors
+                          Payment to Supervisors
                         </div>
                         {beneficiaries.map((supervisor) => (
                           <SelectItem key={supervisor.id} value={supervisor.full_name}>
@@ -445,11 +434,7 @@ export default function NewExpense() {
               {errors.beneficiary && (
                 <p className="text-xs text-destructive">{errors.beneficiary}</p>
               )}
-              <p className="text-xs text-muted-foreground">
-                💡 <strong>Machine/Rent:</strong> Creates categorized expense entries in ledger (debit only).
-                <br />
-                💡 <strong>Supervisor:</strong> Payment tracked to specific person.
-              </p>
+            
             </div>
 
             {/* Site */}
@@ -537,62 +522,22 @@ export default function NewExpense() {
           <DialogHeader>
             <DialogTitle>Add New Beneficiary</DialogTitle>
             <DialogDescription>
-              Create a new boss or admin user account as beneficiary.
+              Add a new supervisor/beneficiary to the system.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="beneficiary_name">Full Name *</Label>
+              <Label htmlFor="beneficiary_name">Name *</Label>
               <Input
                 id="beneficiary_name"
-                placeholder="Enter full name"
-                value={newBeneficiaryData.full_name}
-                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, full_name: e.target.value })}
+                placeholder="Enter name"
+                value={newBeneficiaryData.name}
+                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, name: e.target.value })}
                 disabled={addingBeneficiary}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="beneficiary_email">Email *</Label>
-              <Input
-                id="beneficiary_email"
-                type="email"
-                placeholder="Enter email address"
-                value={newBeneficiaryData.email}
-                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, email: e.target.value })}
-                disabled={addingBeneficiary}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="beneficiary_role">Role *</Label>
-              <Select
-                value={newBeneficiaryData.role}
-                onValueChange={(value: 'boss' | 'admin') => 
-                  setNewBeneficiaryData({ ...newBeneficiaryData, role: value })
-                }
-                disabled={addingBeneficiary}
-              >
-                <SelectTrigger id="beneficiary_role">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="boss">Owner</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="beneficiary_password">Password *</Label>
-              <Input
-                id="beneficiary_password"
-                type="password"
-                placeholder="Minimum 6 characters"
-                value={newBeneficiaryData.password}
-                onChange={(e) => setNewBeneficiaryData({ ...newBeneficiaryData, password: e.target.value })}
-                disabled={addingBeneficiary}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="beneficiary_phone">Phone (Optional)</Label>
+              <Label htmlFor="beneficiary_phone">Phone Number</Label>
               <Input
                 id="beneficiary_phone"
                 placeholder="Enter phone number"
@@ -608,7 +553,7 @@ export default function NewExpense() {
               variant="outline" 
               onClick={() => {
                 setShowAddBeneficiaryDialog(false);
-                setNewBeneficiaryData({ full_name: '', email: '', password: '', phone: '', role: 'boss' });
+                setNewBeneficiaryData({ name: '', phone: '' });
               }}
               disabled={addingBeneficiary}
             >
@@ -647,11 +592,11 @@ export default function NewExpense() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="supervisor_email">Email *</Label>
+              <Label htmlFor="supervisor_email">Email</Label>
               <Input
                 id="supervisor_email"
                 type="email"
-                placeholder="Enter email address"
+                placeholder="Enter email address (optional)"
                 value={newSupervisorData.email}
                 onChange={(e) => setNewSupervisorData({ ...newSupervisorData, email: e.target.value })}
                 disabled={addingSupervisor}
@@ -661,7 +606,7 @@ export default function NewExpense() {
               <Label htmlFor="supervisor_role">Role *</Label>
               <Select
                 value={newSupervisorData.role}
-                onValueChange={(value: 'boss' | 'admin' | 'md') => 
+                onValueChange={(value: 'admin' | 'md' | 'worker') => 
                   setNewSupervisorData({ ...newSupervisorData, role: value })
                 }
                 disabled={addingSupervisor}
@@ -670,9 +615,9 @@ export default function NewExpense() {
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="boss">Owner</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="md">Supervisor</SelectItem>
+                  <SelectItem value="worker">Worker</SelectItem>
                 </SelectContent>
               </Select>
             </div>

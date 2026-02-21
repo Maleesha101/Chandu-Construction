@@ -17,4 +17,27 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Create new Supervisor
+router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, contact } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const result = await query(
+      `INSERT INTO managing_directors (name, contact, active) 
+       VALUES ($1, $2, true) 
+       RETURNING *`,
+      [name.trim(), contact?.trim() || null]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating supervisor:', error);
+    res.status(500).json({ error: 'Failed to create supervisor' });
+  }
+});
+
 export default router;

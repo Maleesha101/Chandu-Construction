@@ -194,6 +194,12 @@ export const mdApi = {
   async getAll() {
     return apiFetch('/managing-directors');
   },
+  async create(data: { name: string; contact?: string }) {
+    return apiFetch('/managing-directors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // User API
