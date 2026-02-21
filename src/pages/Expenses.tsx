@@ -209,6 +209,7 @@ export default function Expenses() {
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead>Date</TableHead>
+                <TableHead>From</TableHead>
                 <TableHead>Recipient</TableHead>
                 <TableHead>Purpose</TableHead>
                 <TableHead>Site</TableHead>
@@ -224,6 +225,7 @@ export default function Expenses() {
                   <TableCell className="font-medium">
                     {format(new Date(expense.entry_date), 'MMM d, yyyy')}
                   </TableCell>
+                  <TableCell>{expense.from_person_name || '-'}</TableCell>
                   <TableCell>{expense.to_name}</TableCell>
                   <TableCell className="max-w-[200px] truncate">
                     {expense.purpose}
