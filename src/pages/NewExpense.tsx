@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { bankApi, siteApi, expenseApi, userApi, mdApi } from '@/lib/apiClient';
 import { BankAccount, ManagingDirector, Site } from '@/lib/types';
@@ -43,9 +53,14 @@ const expenseSchema = z.object({
 
 export default function NewExpense() {
   const navigate = useNavigate();
+  const { id: expenseId } = useParams<{ id: string }>();
   const { user, isRole } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(true);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<any>(null);
+  
+  const isEditMode = !!expenseId;
   
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [managingDirectors, setManagingDirectors] = useState<ManagingDirector[]>([]);
@@ -106,6 +121,22 @@ export default function NewExpense() {
         setTransactionUsers(usersData);
         setBeneficiaries(mdsData);
         setSupervisorUsers(supervisorUsersData);
+
+        // If in edit mode, load existing expense data
+        if (isEditMode && expenseId) {
+          const expenseData = await expenseApi.getById(expenseId);
+          setFormData({
+            transaction_date: expenseData.entry_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+            from_person: expenseData.from_person_name || '',
+            beneficiary: expenseData.to_name || '',
+            purpose: expenseData.purpose || '',
+            amount: expenseData.amount?.toString() || '',
+            site_id: expenseData.site_id || '',
+            payment_source: expenseData.payment_method === 'cash' ? 'petty_cash' : 'bank_account',
+            from_bank_account_id: expenseData.from_bank_account_id || '',
+            reference: expenseData.reference || '',
+          });
+        }
       } catch (error) {
         console.error('Error fetching form data:', error);
         toast.error('Failed to load form data');
@@ -115,7 +146,7 @@ export default function NewExpense() {
     }
 
     fetchData();
-  }, []);
+  }, [isEditMode, expenseId]);
 
   const fetchSupervisors = async () => {
     try {
@@ -227,7 +258,6 @@ export default function NewExpense() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    setLoading(true);
 
     try {
       const validatedData = expenseSchema.parse({
@@ -237,8 +267,7 @@ export default function NewExpense() {
         reference: formData.reference || undefined,
       });
 
-      // Prepare the payload with approval status
-      await expenseApi.create({
+      const payload = {
         to_name: validatedData.beneficiary,
         purpose: validatedData.purpose,
         amount: validatedData.amount,
@@ -249,11 +278,19 @@ export default function NewExpense() {
         reference: validatedData.reference || null,
         entry_date: validatedData.transaction_date,
         from_person_name: validatedData.from_person,
-        // status is automatically set to 'pending' in the backend
-      });
+      };
 
+      // Show confirmation dialog if editing
+      if (isEditMode) {
+        setPendingFormData(payload);
+        setShowConfirmDialog(true);
+        return;
+      }
+
+      // Create new expense directly
+      setLoading(true);
+      await expenseApi.create(payload);
       toast.success('Expense submitted for approval successfully');
-      // Navigate to dashboard to see the submission
       navigate('/');
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -265,11 +302,31 @@ export default function NewExpense() {
         });
         setErrors(fieldErrors);
       } else {
-        console.error('Error creating expense:', error);
-        toast.error('Failed to create expense record');
+        console.error('Error processing expense:', error);
+        toast.error('Failed to process expense record');
       }
     } finally {
+      if (!isEditMode) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleConfirmUpdate = async () => {
+    if (!pendingFormData || !expenseId) return;
+
+    setLoading(true);
+    try {
+      await expenseApi.update(expenseId, pendingFormData);
+      toast.success('Expense updated successfully');
+      navigate('/expenses');
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast.error('Failed to update expense record');
+    } finally {
       setLoading(false);
+      setShowConfirmDialog(false);
+      setPendingFormData(null);
     }
   };
 
@@ -284,7 +341,10 @@ export default function NewExpense() {
   }
 
   return (
-    <DashboardLayout title="New Expense" description="Create a new expense record">
+    <DashboardLayout 
+      title={isEditMode ? "Edit Expense" : "New Expense"} 
+      description={isEditMode ? "Update expense record" : "Create a new expense record"}
+    >
       <div className="mb-6">
         <Button variant="ghost" onClick={() => navigate('/expenses')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
@@ -562,7 +622,7 @@ export default function NewExpense() {
           <div className="flex gap-3 pt-4 border-t border-border">
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Expense
+              {isEditMode ? 'Update Expense' : 'Create Expense'}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate('/expenses')}>
               Cancel
@@ -803,6 +863,35 @@ export default function NewExpense() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Update Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Expense Update</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to update this expense record? This action will modify the existing record.
+              {pendingFormData && (
+                <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
+                  <p><strong>Recipient:</strong> {pendingFormData.to_name}</p>
+                  <p><strong>Amount:</strong> LKR {pendingFormData.amount?.toLocaleString()}</p>
+                  <p><strong>Purpose:</strong> {pendingFormData.purpose}</p>
+                  <p><strong>Payment Method:</strong> {pendingFormData.payment_method === 'cash' ? 'Petty Cash' : 'Bank Transfer'}</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmUpdate}
+              disabled={loading}
+            >
+              {loading ? 'Updating...' : 'Confirm Update'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

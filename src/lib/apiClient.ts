@@ -83,6 +83,13 @@ export const expenseApi = {
     });
   },
 
+  async update(id: string, expense: any) {
+    return apiFetch(`/expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(expense),
+    });
+  },
+
   async updateStatus(id: string, status: string, comments?: string) {
     return apiFetch(`/expenses/${id}/status`, {
       method: 'PATCH',

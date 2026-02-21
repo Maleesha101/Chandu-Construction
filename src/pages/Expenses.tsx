@@ -4,6 +4,17 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -21,8 +32,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { expenseApi, siteApi } from '@/lib/apiClient';
 import { ExpenseRecord, Site } from '@/lib/types';
-import { Plus, Search, Filter, Eye, Receipt } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, Search, Filter, Eye, Receipt, Pencil, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
 function formatCurrency(amount: number): string {
@@ -36,12 +47,16 @@ function formatCurrency(amount: number): string {
 
 export default function Expenses() {
   const { isRole, userRole } = useAuth();
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [siteFilter, setSiteFilter] = useState<string>('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -78,6 +93,38 @@ export default function Expenses() {
       expense.reference?.toLowerCase().includes(search)
     );
   });
+
+  const handleDeleteClick = (expense: ExpenseRecord) => {
+    setExpenseToDelete(expense);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!expenseToDelete) return;
+
+    setDeleting(true);
+    try {
+      await expenseApi.delete(expenseToDelete.id);
+      toast.success('Expense record deleted successfully');
+      // Refresh the expenses list
+      const params: any = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (siteFilter !== 'all') params.site_id = siteFilter;
+      const expensesData = await expenseApi.getAll(params);
+      setExpenses(expensesData);
+    } catch (error: any) {
+      console.error('Error deleting expense:', error);
+      toast.error(error.message || 'Failed to delete expense record');
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setExpenseToDelete(null);
+    }
+  };
+
+  const handleEditClick = (expenseId: string) => {
+    navigate(`/expenses/edit/${expenseId}`);
+  };
 
   return (
     <DashboardLayout title="Expense Records" description="View and manage all expense entries">
@@ -190,11 +237,28 @@ export default function Expenses() {
                     <StatusBadge status={expense.status} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link to={`/expenses/${expense.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      {isRole(['boss']) && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(expense.id)}
+                            title="Edit expense"
+                          >
+                            <Pencil className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(expense)}
+                            title="Delete expense"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -217,6 +281,34 @@ export default function Expenses() {
           </p>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the expense record:
+              <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
+                <p><strong>Date:</strong> {expenseToDelete && format(new Date(expenseToDelete.entry_date), 'MMM d, yyyy')}</p>
+                <p><strong>Recipient:</strong> {expenseToDelete?.to_name}</p>
+                <p><strong>Amount:</strong> {expenseToDelete && formatCurrency(Number(expenseToDelete.amount))}</p>
+                <p><strong>Purpose:</strong> {expenseToDelete?.purpose}</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

@@ -43,6 +43,11 @@ const App = () => (
                 <NewExpense />
               </ProtectedRoute>
             } />
+            <Route path="/expenses/edit/:id" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <NewExpense />
+              </ProtectedRoute>
+            } />
             <Route path="/approvals" element={<Approvals />} />
             <Route path="/qs-queue" element={<QSQueue />} />
             <Route path="/reports" element={<Reports />} />

@@ -306,6 +306,77 @@ router.patch('/:id/status',
   }
 );
 
+// Update expense (only boss)
+router.put('/:id',
+  authenticate,
+  authorize('boss'),
+  body('to_name').notEmpty().isLength({ max: 200 }),
+  body('purpose').notEmpty().isLength({ max: 500 }),
+  body('amount').isNumeric().custom(value => value > 0),
+  body('site_id').notEmpty().isUUID(),
+  body('payment_method').optional().isString(),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const {
+        to_name,
+        purpose,
+        amount,
+        site_id,
+        from_bank_account_id,
+        md_id,
+        payment_method,
+        reference,
+        entry_date,
+        from_person_name
+      } = req.body;
+
+      // Check if expense exists
+      const checkResult = await query(
+        'SELECT * FROM expense_records WHERE id = $1',
+        [id]
+      );
+
+      if (checkResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Expense not found' });
+      }
+
+      // Update expense record
+      const result = await query(
+        `UPDATE expense_records 
+        SET to_name = $1, purpose = $2, amount = $3, site_id = $4,
+            from_bank_account_id = $5, md_id = $6, payment_method = $7,
+            reference = $8, entry_date = $9, qs_notes = $10, updated_at = NOW()
+        WHERE id = $11
+        RETURNING *`,
+        [
+          to_name,
+          purpose,
+          amount,
+          site_id,
+          from_bank_account_id || null,
+          md_id || null,
+          payment_method || 'cash',
+          reference || null,
+          entry_date || new Date(),
+          from_person_name || null,
+          id
+        ]
+      );
+
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      res.status(500).json({ error: 'Failed to update expense' });
+    }
+  }
+);
+
 // Delete expense (only boss)
 router.delete('/:id',
   authenticate,
