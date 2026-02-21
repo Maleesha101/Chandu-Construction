@@ -29,6 +29,7 @@ import {
   Home,
   Receipt,
   FileText,
+  Banknote,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -45,6 +46,8 @@ function getAccountIcon(category: string) {
   switch (category) {
     case 'bank':
       return Wallet;
+    case 'petty_cash':
+      return Banknote;
     case 'supervisor':
       return Users;
     case 'machine':
@@ -135,6 +138,7 @@ export default function Ledger() {
 
   const filteredAccounts = accounts.filter(
     (account) =>
+      // Show assets and expenses, hide liabilities
       account.account_type !== 'liability' &&
       (account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         account.account_code.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -154,6 +158,10 @@ export default function Ledger() {
 
   const totalExpenses = accounts
     .filter((a) => a.account_type === 'expense')
+    .reduce((sum, a) => sum + Number(a.balance), 0);
+
+  const totalPettyCash = accounts
+    .filter((a) => a.account_category === 'petty_cash')
     .reduce((sum, a) => sum + Number(a.balance), 0);
 
   if (!isRole(['boss', 'admin'])) {
@@ -200,10 +208,10 @@ export default function Ledger() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Debits</CardTitle>
-              <TrendingUp className="h-4 w-4 text-red-600" />
+              <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{formatCurrency(totalDebits)}</div>
+              <div className="text-2xl font-bold text-green-600">{formatCurrency(totalDebits)}</div>
               <p className="text-xs text-muted-foreground">{entries.filter(e => e.debit > 0).length} entries</p>
               {selectedAccount.account_type === 'expense' && (
                 <p className="text-xs text-muted-foreground mt-1">Expenses only have debits</p>
@@ -215,10 +223,10 @@ export default function Ledger() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Credits</CardTitle>
-                <TrendingDown className="h-4 w-4 text-green-600" />
+                <TrendingDown className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(totalCredits)}</div>
+                <div className="text-2xl font-bold text-red-600">{formatCurrency(totalCredits)}</div>
                 <p className="text-xs text-muted-foreground">{entries.filter(e => e.credit > 0).length} entries</p>
               </CardContent>
             </Card>
@@ -295,7 +303,11 @@ export default function Ledger() {
                           </TableCell>
                           <TableCell className="text-right">
                             {entry.debit > 0 ? (
-                              <span className="font-semibold text-red-600">
+                              <span className={`font-semibold ${
+                                selectedAccount.account_type === 'asset' 
+                                  ? 'text-green-600'  // Asset debit = money in (increase)
+                                  : 'text-red-600'    // Expense debit = spending (decrease for company)
+                              }`}>
                                 {formatCurrency(Number(entry.debit))}
                               </span>
                             ) : (
@@ -305,7 +317,11 @@ export default function Ledger() {
                           {selectedAccount.account_type !== 'expense' && (
                             <TableCell className="text-right">
                               {entry.credit > 0 ? (
-                                <span className="font-semibold text-green-600">
+                                <span className={`font-semibold ${
+                                  selectedAccount.account_type === 'asset'
+                                    ? 'text-red-600'     // Asset credit = money out (decrease)
+                                    : 'text-green-600'   // Liability/Revenue credit = increase
+                                }`}>
                                   {formatCurrency(Number(entry.credit))}
                                 </span>
                               ) : (
@@ -336,16 +352,29 @@ export default function Ledger() {
       description="Double-entry bookkeeping system for all financial transactions"
     >
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Assets</CardTitle>
-            <TrendingUp className="h-4 w-4 text-blue-600" />
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalAssets)}</div>
             <p className="text-xs text-muted-foreground">
               {accounts.filter((a) => a.account_type === 'asset').length} accounts
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Petty Cash Accounts</CardTitle>
+            <Banknote className="h-4 w-4 text-emerald-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(totalPettyCash)}</div>
+            <p className="text-xs text-muted-foreground">
+              {accounts.filter((a) => a.account_category === 'petty_cash').length} accounts
             </p>
           </CardContent>
         </Card>
@@ -369,6 +398,7 @@ export default function Ledger() {
         <TabsList>
           <TabsTrigger value="all">All Accounts</TabsTrigger>
           <TabsTrigger value="assets">Assets</TabsTrigger>
+          <TabsTrigger value="petty_cash">Petty Cash</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="breakdown">Expense Breakdown</TabsTrigger>
         </TabsList>
@@ -502,6 +532,63 @@ export default function Ledger() {
                         </TableRow>
                       );
                     })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Petty Cash Tab */}
+        <TabsContent value="petty_cash">
+          <Card>
+            <CardHeader>
+              <CardTitle>Petty Cash Accounts</CardTitle>
+              <CardDescription>Cash held by individuals for expenses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Account</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAccounts
+                    .filter((a) => a.account_category === 'petty_cash')
+                    .map((account) => {
+                      const Icon = getAccountIcon(account.account_category);
+                      return (
+                        <TableRow
+                          key={account.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => viewAccountDetails(account)}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{account.account_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700">
+                              {account.account_category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-emerald-600">
+                            {formatCurrency(Number(account.balance))}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  {filteredAccounts.filter((a) => a.account_category === 'petty_cash').length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                        No petty cash accounts found
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

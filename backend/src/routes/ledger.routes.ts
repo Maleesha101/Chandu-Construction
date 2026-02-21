@@ -245,4 +245,58 @@ router.get('/expense-breakdown', authenticate, async (req, res, next) => {
   }
 });
 
+// Get user's cash account balance by user ID
+router.get('/user-cash-balance/:userId', authenticate, async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    // First get the user's full name
+    const userResult = await query(
+      'SELECT full_name FROM users WHERE id = $1 AND active = true',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const fullName = userResult.rows[0].full_name;
+    
+    // Get their cash account
+    const accountResult = await query(
+      `SELECT 
+        la.id,
+        la.account_code,
+        la.account_name,
+        la.balance,
+        la.account_type,
+        la.account_category,
+        (SELECT COUNT(*) FROM ledger_entries WHERE account_id = la.id) as transaction_count
+      FROM ledger_accounts la
+      WHERE la.reference_id = $1 
+        AND la.account_category = 'petty_cash'
+        AND la.active = true
+      LIMIT 1`,
+      [userId]
+    );
+
+    if (accountResult.rows.length === 0) {
+      // No account exists yet, return zero balance
+      return res.json({
+        balance: 0,
+        account_exists: false,
+        user_name: fullName
+      });
+    }
+
+    res.json({
+      ...accountResult.rows[0],
+      account_exists: true,
+      user_name: fullName
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

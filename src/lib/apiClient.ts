@@ -200,6 +200,11 @@ export const mdApi = {
       body: JSON.stringify(data),
     });
   },
+  async delete(id: string) {
+    return apiFetch(`/managing-directors/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // User API
@@ -282,5 +287,9 @@ export const ledgerApi = {
     
     const query = queryParams.toString();
     return apiFetch(`/ledger/expense-breakdown${query ? `?${query}` : ''}`);
+  },
+
+  async getUserCashBalance(userId: string) {
+    return apiFetch(`/ledger/user-cash-balance/${userId}`);
   },
 };

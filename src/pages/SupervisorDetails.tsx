@@ -12,7 +12,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { expenseApi, userApi } from '@/lib/apiClient';
+import { expenseApi, userApi, ledgerApi } from '@/lib/apiClient';
 import { ExpenseRecord } from '@/lib/types';
 import { ArrowLeft, Loader2, Receipt, Banknote, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
@@ -43,6 +43,7 @@ export default function SupervisorDetails() {
   const [user, setUser] = useState<UserDetails | null>(null);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ledgerBalance, setLedgerBalance] = useState<number>(0);
 
   useEffect(() => {
     async function fetchData() {
@@ -52,9 +53,10 @@ export default function SupervisorDetails() {
       }
 
       try {
-        const [allUsers, allExpenses] = await Promise.all([
+        const [allUsers, allExpenses, cashBalance] = await Promise.all([
           userApi.getAll(),
           expenseApi.getAll(),
+          ledgerApi.getUserCashBalance(userId),
         ]);
 
         const foundUser = allUsers.find((u: UserDetails) => u.id === userId);
@@ -65,10 +67,14 @@ export default function SupervisorDetails() {
         }
 
         setUser(foundUser);
+        
+        // Set ledger balance (actual cash account balance)
+        setLedgerBalance(cashBalance.balance || 0);
 
         console.log('All expenses:', allExpenses.length);
         console.log('Looking for expenses where from_person_name ===', foundUser.full_name);
         console.log('Sample expense:', allExpenses[0]);
+        console.log('Ledger cash balance:', cashBalance);
 
         // Filter expenses where this user is the "from_person" (transaction made by)
         const userExpenses = allExpenses.filter(
@@ -109,15 +115,6 @@ export default function SupervisorDetails() {
 
   const approvedExpenses = expenses.filter((e) =>
     e.payment_method === 'cash' && ['approved', 'wd_approved'].includes(e.status)
-  );
-  
-  const pettyCashExpenses = approvedExpenses.filter(
-    (e) => e.payment_method === 'cash'
-  );
-
-  const totalPettyCash = pettyCashExpenses.reduce(
-    (sum, e) => sum + Number(e.amount),
-    0
   );
   
   const totalSpent = approvedExpenses.reduce(
@@ -180,13 +177,13 @@ export default function SupervisorDetails() {
           <div className="stat-card !bg-amber-50 border-amber-200">
             <div className="flex items-center gap-2 text-amber-700 mb-1">
               <Banknote className="h-4 w-4" />
-              <span className="text-sm font-medium">Petty Cash</span>
+              <span className="text-sm font-medium">Petty Cash Balance</span>
             </div>
             <div className="text-2xl font-bold text-amber-900">
-              {formatCurrency(totalPettyCash)}
+              {formatCurrency(ledgerBalance)}
             </div>
             <div className="text-xs text-amber-600 mt-1">
-              {pettyCashExpenses.length} cash transaction{pettyCashExpenses.length !== 1 ? 's' : ''}
+              Current ledger balance
             </div>
           </div>
 

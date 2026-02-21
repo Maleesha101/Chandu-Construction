@@ -24,7 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { bankApi, siteApi, expenseApi, userApi, mdApi } from '@/lib/apiClient';
 import { BankAccount, ManagingDirector, Site } from '@/lib/types';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Trash2, Settings } from 'lucide-react';
 import { z } from 'zod';
 
 const expenseSchema = z.object({
@@ -51,7 +51,8 @@ export default function NewExpense() {
   const [managingDirectors, setManagingDirectors] = useState<ManagingDirector[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [transactionUsers, setTransactionUsers] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
-  const [beneficiaries, setBeneficiaries] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
+  const [beneficiaries, setBeneficiaries] = useState<ManagingDirector[]>([]);
+  const [supervisorUsers, setSupervisorUsers] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
   
   const [formData, setFormData] = useState({
     transaction_date: new Date().toISOString().split('T')[0],
@@ -71,7 +72,7 @@ export default function NewExpense() {
   const [addingSupervisor, setAddingSupervisor] = useState(false);
   const [newSupervisorData, setNewSupervisorData] = useState({
     full_name: '',
-    email: '',
+    email: '',                                                                                                                                              
     password: '',
     phone: '',
     role: 'md' as 'admin' | 'md' | 'worker',
@@ -81,24 +82,30 @@ export default function NewExpense() {
   const [showAddBeneficiaryDialog, setShowAddBeneficiaryDialog] = useState(false);
   const [addingBeneficiary, setAddingBeneficiary] = useState(false);
   const [newBeneficiaryData, setNewBeneficiaryData] = useState({
-    name: '',
+    name: '',                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
     phone: '',
   });
+
+  // Dialog state for managing beneficiaries
+  const [showManageBeneficiariesDialog, setShowManageBeneficiariesDialog] = useState(false);
+  const [deletingBeneficiary, setDeletingBeneficiary] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [banks, sitesData, usersData, supervisorsData] = await Promise.all([
+        const [banks, sitesData, usersData, mdsData, supervisorUsersData] = await Promise.all([
           bankApi.getAll(),
           siteApi.getAll(true),
           userApi.getTransactionUsers(),
+          mdApi.getAll(),
           userApi.getSupervisors(),
         ]);
 
         setBankAccounts(banks);
         setSites(sitesData);
         setTransactionUsers(usersData);
-        setBeneficiaries(supervisorsData);
+        setBeneficiaries(mdsData);
+        setSupervisorUsers(supervisorUsersData);
       } catch (error) {
         console.error('Error fetching form data:', error);
         toast.error('Failed to load form data');
@@ -121,10 +128,32 @@ export default function NewExpense() {
 
   const fetchBeneficiaries = async () => {
     try {
-      const supervisorsData = await userApi.getSupervisors();
-      setBeneficiaries(supervisorsData);
+      const [mdsData, supervisorUsersData] = await Promise.all([
+        mdApi.getAll(),
+        userApi.getSupervisors(),
+      ]);
+      setBeneficiaries(mdsData);
+      setSupervisorUsers(supervisorUsersData);
     } catch (error) {
       console.error('Error fetching beneficiaries:', error);
+    }
+  };
+
+  const handleDeleteBeneficiary = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this beneficiary?')) {
+      return;
+    }
+
+    setDeletingBeneficiary(id);
+    try {
+      await mdApi.delete(id);
+      toast.success('Beneficiary deleted successfully');
+      await fetchBeneficiaries();
+    } catch (error: any) {
+      console.error('Error deleting beneficiary:', error);
+      toast.error(error.message || 'Failed to delete beneficiary');
+    } finally {
+      setDeletingBeneficiary(null);
     }
   };
 
@@ -397,21 +426,35 @@ export default function NewExpense() {
                     <SelectItem value="Machine">Machine</SelectItem>
                     <SelectItem value="Rent">Rent</SelectItem>
                     
-                    {/* Supervisors/Beneficiaries */}
+                    {/* Beneficiaries from managing_directors table */}
                     {beneficiaries.length > 0 && (
                       <>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-2">
-                          Payment to Supervisors
+                           Payment to Supervisors
                         </div>
                         {beneficiaries.map((supervisor) => (
-                          <SelectItem key={supervisor.id} value={supervisor.full_name}>
-                            {supervisor.full_name}
+                          <SelectItem key={supervisor.id} value={supervisor.name}>
+                            {supervisor.name}
                           </SelectItem>
                         ))}
                       </>
                     )}
                     
-                    {beneficiaries.length === 0 && (
+                    {/* Supervisor users from users table */}
+                    {supervisorUsers.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-2">
+                           User Accounts
+                        </div>
+                        {supervisorUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.full_name}>
+                            {user.full_name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                    
+                    {beneficiaries.length === 0 && supervisorUsers.length === 0 && (
                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
                         No supervisors available
                       </div>
@@ -419,16 +462,28 @@ export default function NewExpense() {
                   </SelectContent>
                 </Select>
                 {isRole(['boss', 'admin']) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowAddBeneficiaryDialog(true)}
-                    title="Add new beneficiary"
-                    disabled={loading}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowAddBeneficiaryDialog(true)}
+                      title="Add new beneficiary"
+                      disabled={loading}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowManageBeneficiariesDialog(true)}
+                      title="Manage beneficiaries"
+                      disabled={loading}
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </>
                 )}
               </div>
               {errors.beneficiary && (
@@ -662,6 +717,88 @@ export default function NewExpense() {
             >
               {addingSupervisor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Beneficiaries Dialog */}
+      <Dialog open={showManageBeneficiariesDialog} onOpenChange={setShowManageBeneficiariesDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Manage Beneficiaries</DialogTitle>
+            <DialogDescription>
+              View and delete beneficiaries from the system.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[500px] overflow-y-auto">
+            {beneficiaries.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">Supervisors (Managing Directors)</h3>
+                <div className="space-y-2">
+                  {beneficiaries.map((beneficiary) => (
+                    <div
+                      key={beneficiary.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{beneficiary.name}</p>
+                        {beneficiary.contact && (
+                          <p className="text-sm text-muted-foreground">{beneficiary.contact}</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteBeneficiary(beneficiary.id)}
+                        disabled={deletingBeneficiary === beneficiary.id}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        {deletingBeneficiary === beneficiary.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {supervisorUsers.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">User Accounts</h3>
+                <div className="space-y-2">
+                  {supervisorUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-3 border rounded-lg bg-muted/20"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{user.full_name}</p>
+                        <p className="text-sm text-muted-foreground capitalize">{user.role}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Cannot delete user accounts</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {beneficiaries.length === 0 && supervisorUsers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No beneficiaries found
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => setShowManageBeneficiariesDialog(false)}
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

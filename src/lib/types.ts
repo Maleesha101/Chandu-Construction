@@ -108,7 +108,7 @@ export interface LedgerEntry {
 }
 
 export type AccountType = 'asset' | 'liability' | 'expense' | 'revenue';
-export type AccountCategory = 'bank' | 'supervisor' | 'machine' | 'rent' | 'general';
+export type AccountCategory = 'bank' | 'supervisor' | 'machine' | 'rent' | 'general' | 'petty_cash' | 'user';
 
 export interface LedgerAccount {
   id: string;
