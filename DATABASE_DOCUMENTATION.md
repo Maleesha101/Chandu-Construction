@@ -458,7 +458,195 @@ Individual debit/credit entries for all transactions.
 
 ## Key Relationships & Entity Diagram
 
-### Primary Entity Relationships
+### Entity Relationship Diagram (Mermaid)
+
+```mermaid
+erDiagram
+    users ||--o{ expense_records : "enters"
+    users ||--o{ approvals : "approves"
+    users ||--o{ record_attachments : "uploads"
+    users ||--o{ funding_transactions : "creates"
+    users ||--o{ cheques : "creates"
+    users ||--o{ ledger_entries : "creates"
+    users ||--o{ ledger_accounts : "owns_cash"
+
+    bank_accounts ||--o{ expense_records : "funds"
+    bank_accounts ||--o{ funding_transactions : "receives"
+    bank_accounts ||--o{ bank_transfers : "from"
+    bank_accounts ||--o{ bank_transfers : "to"
+    bank_accounts ||--o{ cheques : "issues"
+    bank_accounts ||--o{ cheques : "deposits_to"
+    bank_accounts ||--o{ ledger_accounts : "tracks"
+
+    managing_directors ||--o{ expense_records : "float_source"
+    managing_directors ||--o{ funding_transactions : "receives_float"
+    managing_directors ||--o{ ledger_accounts : "tracks_float"
+
+    sites ||--o{ expense_records : "location"
+
+    expense_records ||--o{ record_attachments : "has"
+    expense_records ||--o{ approvals : "reviewed_by"
+    expense_records ||--o{ ledger_entries : "generates"
+
+    cheques ||--o{ bank_transfers : "creates_transfer"
+
+    ledger_accounts ||--o{ ledger_entries : "contains"
+    ledger_accounts ||--o{ ledger_accounts : "parent_of"
+
+    users {
+        uuid id PK
+        varchar email UK
+        varchar password_hash
+        varchar full_name
+        varchar phone
+        app_role role
+        boolean active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    bank_accounts {
+        uuid id PK
+        varchar name
+        varchar bank_name
+        varchar account_number
+        decimal balance
+        varchar currency
+        boolean active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    managing_directors {
+        uuid id PK
+        varchar name
+        varchar contact
+        varchar email
+        decimal float_balance
+        boolean active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    sites {
+        uuid id PK
+        varchar name
+        text location
+        varchar code UK
+        boolean active
+        timestamp created_at
+    }
+
+    expense_records {
+        uuid id PK
+        date entry_date
+        uuid entered_by_user_id FK
+        uuid md_id FK
+        uuid from_bank_account_id FK
+        varchar to_name
+        text purpose
+        uuid site_id FK
+        decimal amount
+        varchar payment_method
+        expense_status status
+        varchar reference
+        text wd_reason
+        text qs_notes
+        date week_start
+        date week_end
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    record_attachments {
+        uuid id PK
+        uuid record_id FK
+        varchar filename
+        text url
+        uuid uploaded_by FK
+        timestamp uploaded_at
+    }
+
+    approvals {
+        uuid id PK
+        uuid record_id FK
+        uuid approver_id FK
+        boolean approved
+        text comments
+        timestamp approved_at
+    }
+
+    funding_transactions {
+        uuid id PK
+        varchar source
+        uuid destination_bank_id FK
+        uuid destination_md_id FK
+        decimal amount
+        date transaction_date
+        text notes
+        uuid created_by FK
+        timestamp created_at
+    }
+
+    bank_transfers {
+        uuid id PK
+        uuid from_account_id FK
+        uuid to_account_id FK
+        decimal amount
+        text description
+        timestamp transfer_date
+        uuid cheque_id FK
+        varchar transfer_type
+        timestamp created_at
+    }
+
+    cheques {
+        uuid id PK
+        uuid bank_account_id FK
+        varchar cheque_number
+        varchar payee_name
+        decimal amount
+        date cheque_date
+        date deposit_date
+        uuid deposited_to_account_id FK
+        varchar status
+        text description
+        uuid created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ledger_accounts {
+        uuid id PK
+        varchar account_code UK
+        varchar account_name
+        account_type account_type
+        account_category account_category
+        uuid parent_account_id FK
+        uuid reference_id
+        decimal balance
+        boolean active
+        text description
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ledger_entries {
+        uuid id PK
+        timestamp transaction_date
+        uuid account_id FK
+        uuid expense_record_id FK
+        decimal debit
+        decimal credit
+        decimal balance_after
+        text description
+        varchar reference_number
+        uuid created_by FK
+        timestamp created_at
+    }
+```
+
+### Primary Entity Relationships (Text View)
 
 ```
 users
