@@ -30,8 +30,13 @@ import {
   Receipt,
   FileText,
   Banknote,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-LK', {
@@ -111,6 +116,161 @@ export default function Ledger() {
     } catch (error) {
       console.error('Error fetching expense breakdown:', error);
     }
+  };
+
+  const exportToExcel = () => {
+    if (!selectedAccount || entries.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const exportData = entries.map((entry) => ({
+      Date: format(new Date(entry.transaction_date), 'yyyy-MM-dd'),
+      Description: entry.description || '-',
+      'From Person': entry.from_person_name || '-',
+      Beneficiary: entry.expense_to_name || '-',
+      Reference: entry.expense_reference || entry.reference_number || '-',
+      Site: entry.site_name || '-',
+      'Debit (LKR)': entry.debit > 0 ? Number(entry.debit).toFixed(2) : '0.00',
+      'Credit (LKR)': entry.credit > 0 ? Number(entry.credit).toFixed(2) : '0.00',
+      'Balance (LKR)': entry.balance_after !== null ? Number(entry.balance_after).toFixed(2) : '-',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+    
+    const fileName = `${selectedAccount.account_name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast.success('Excel file exported successfully');
+  };
+
+  const exportToPDF = () => {
+    if (!selectedAccount || entries.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text(`Dhanu Construction: ${selectedAccount.account_name}`, 14, 15);
+    
+    // Add account details
+    doc.setFontSize(10);
+    doc.text(`Account Code: ${selectedAccount.account_code} | Type: ${selectedAccount.account_type.toUpperCase()}`, 14, 22);
+    doc.text(`Current Balance: LKR ${Number(selectedAccount.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 28);
+    doc.text(`Export Date: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`, 14, 34);
+
+    // Prepare table data
+    const tableData = entries.map((entry) => [
+      format(new Date(entry.transaction_date), 'yyyy-MM-dd'),
+      entry.description || '-',
+      entry.expense_to_name || '-',
+      entry.expense_reference || entry.reference_number || '-',
+      entry.debit > 0 ? Number(entry.debit).toFixed(2) : '-',
+      selectedAccount.account_type !== 'expense' ? (entry.credit > 0 ? Number(entry.credit).toFixed(2) : '-') : null,
+      entry.balance_after !== null ? Number(entry.balance_after).toFixed(2) : '-',
+    ].filter(item => item !== null));
+
+    const columns = selectedAccount.account_type === 'expense'
+      ? ['Date', 'Description', 'Beneficiary', 'Reference', 'Amount (LKR)', 'Balance (LKR)']
+      : ['Date', 'Description', 'Beneficiary', 'Reference', 'Debit (LKR)', 'Credit (LKR)', 'Balance (LKR)'];
+
+    autoTable(doc, {
+      head: [columns],
+      body: tableData,
+      startY: 40,
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 25 }, // Date
+        1: { cellWidth: 'auto' }, // Description
+      },
+    });
+
+    const fileName = `${selectedAccount.account_name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(fileName);
+    toast.success('PDF file exported successfully');
+  };
+
+  const exportAccountsToExcel = () => {
+    if (accounts.length === 0) {
+      toast.error('No accounts to export');
+      return;
+    }
+
+    const filteredAccounts = getFilteredAccounts();
+    const exportData = filteredAccounts.map((account) => ({
+      'Account Code': account.account_code,
+      'Account Name': account.account_name,
+      Type: account.account_type.toUpperCase(),
+      Category: account.account_category,
+      'Balance (LKR)': Number(account.balance).toFixed(2),
+      'Transactions': account.transaction_count || 0,
+      Status: account.active ? 'Active' : 'Inactive',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ledger Accounts');
+    
+    const fileName = `Ledger_Accounts_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast.success('Excel file exported successfully');
+  };
+
+  const exportAccountsToPDF = () => {
+    if (accounts.length === 0) {
+      toast.error('No accounts to export');
+      return;
+    }
+
+    const filteredAccounts = getFilteredAccounts();
+    const doc = new jsPDF('l', 'mm', 'a4');
+    
+    doc.setFontSize(16);
+    doc.text('Ledger Accounts Summary', 14, 15);
+    
+    doc.setFontSize(10);
+    doc.text(`Export Date: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`, 14, 22);
+    doc.text(`Total Accounts: ${filteredAccounts.length}`, 14, 28);
+    doc.text(`Total Assets: LKR ${totalAssets.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 14, 34);
+    doc.text(`Total Expenses: LKR ${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 14, 40);
+
+    const tableData = filteredAccounts.map((account) => [
+      account.account_code,
+      account.account_name,
+      account.account_type.toUpperCase(),
+      account.account_category,
+      Number(account.balance).toFixed(2),
+      (account.transaction_count || 0).toString(),
+    ]);
+
+    autoTable(doc, {
+      head: [['Code', 'Account Name', 'Type', 'Category', 'Balance (LKR)', 'Transactions']],
+      body: tableData,
+      startY: 46,
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 8 },
+    });
+
+    const fileName = `Ledger_Accounts_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(fileName);
+    toast.success('PDF file exported successfully');
+  };
+
+  const getFilteredAccounts = () => {
+    return accounts.filter((account) => {
+      const matchesSearch = searchTerm
+        ? account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          account.account_code.toLowerCase().includes(searchTerm.toLowerCase())
+        : true;
+      return matchesSearch;
+    });
   };
 
   const fetchAccountEntries = async (accountId: string) => {
@@ -247,13 +407,39 @@ export default function Ledger() {
         {/* Transaction History */}
         <Card>
           <CardHeader>
-            <CardTitle>Transaction History</CardTitle>
-            <CardDescription>
-              {selectedAccount.account_type === 'expense' 
-                ? 'Expense accounts only receive DEBIT entries (spending increases). Machine and Rent expenses are recorded here when approved.'
-                : 'All ledger entries for this account'
-              }
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>
+                  {selectedAccount.account_type === 'expense' 
+                    ? 'Expense accounts only receive DEBIT entries (spending increases). Machine and Rent expenses are recorded here when approved.'
+                    : 'All ledger entries for this account'
+                  }
+                </CardDescription>
+              </div>
+              {entries.length > 0 && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportToExcel}
+                    className="gap-2"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Export Excel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportToPDF}
+                    className="gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export PDF
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {loadingEntries ? (
@@ -410,13 +596,23 @@ export default function Ledger() {
           <TabsTrigger value="breakdown">Expense Breakdown</TabsTrigger>
         </TabsList>
 
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <Input
             placeholder="Search accounts by name or code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-md"
           />
+          <div className="flex gap-2">
+            <Button onClick={exportAccountsToExcel} variant="outline" size="sm">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export Excel
+            </Button>
+            <Button onClick={exportAccountsToPDF} variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* All Accounts Tab */}
