@@ -306,7 +306,7 @@ export default function Ledger() {
                             {entry.expense_to_name || '-'}
                           </TableCell>
                           <TableCell className="text-sm font-mono text-muted-foreground">
-                            {entry.reference_number || '-'}
+                            {entry.expense_reference || entry.reference_number || '-'}
                           </TableCell>
                           <TableCell className="text-right">
                             {entry.debit > 0 ? (
