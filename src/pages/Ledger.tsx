@@ -293,6 +293,9 @@ export default function Ledger() {
                           <TableCell>
                             <div>
                               <p className="text-sm font-medium">{entry.description || '-'}</p>
+                              {entry.from_person_name && (
+                                <p className="text-xs text-muted-foreground">From: {entry.from_person_name}</p>
+                              )}
                               {entry.site_name && (
                                 <p className="text-xs text-muted-foreground">Site: {entry.site_name}</p>
                               )}

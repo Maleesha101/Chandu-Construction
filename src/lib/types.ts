@@ -147,6 +147,7 @@ export interface LedgerEntryDetail {
   expense_to_name?: string;
   expense_purpose?: string;
   expense_amount?: number;
+  from_person_name?: string;
   site_name?: string;
   created_by_name?: string;
 }

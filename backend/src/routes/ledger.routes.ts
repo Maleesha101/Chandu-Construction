@@ -75,6 +75,7 @@ router.get('/accounts/:id/entries', authenticate, async (req, res, next) => {
         er.to_name as expense_to_name,
         er.purpose as expense_purpose,
         er.amount as expense_amount,
+        er.qs_notes as from_person_name,
         s.name as site_name,
         u.full_name as created_by_name
       FROM ledger_entries le
