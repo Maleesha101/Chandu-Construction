@@ -196,7 +196,7 @@ router.post('/transfer',
       try {
         // Check from account balance
         const fromAccount = await query(
-          'SELECT balance FROM bank_accounts WHERE id = $1',
+          'SELECT name, bank_name, balance FROM bank_accounts WHERE id = $1',
           [from_account_id]
         );
 
@@ -206,6 +206,16 @@ router.post('/transfer',
 
         if (parseFloat(fromAccount.rows[0].balance) < amount) {
           throw new Error('Insufficient balance in source account');
+        }
+
+        // Get destination account details
+        const toAccount = await query(
+          'SELECT name, bank_name FROM bank_accounts WHERE id = $1',
+          [to_account_id]
+        );
+
+        if (toAccount.rows.length === 0) {
+          throw new Error('Destination account not found');
         }
 
         // Deduct from source account
@@ -227,6 +237,87 @@ router.post('/transfer',
            VALUES ($1, $2, $3, $4, NOW()) 
            RETURNING *`,
           [from_account_id, to_account_id, amount, description || null]
+        );
+
+        const transfer = transferResult.rows[0];
+        const transferDesc = description || `Transfer to ${toAccount.rows[0].name}`;
+        const referenceNumber = `TRF-${transfer.id.substring(0, 8)}`;
+
+        // Get or create ledger accounts for both bank accounts
+        const fromAccountCode = 'BANK-' + fromAccount.rows[0].name.toUpperCase().replace(/\s+/g, '-');
+        const fromAccountName = `${fromAccount.rows[0].name} - ${fromAccount.rows[0].bank_name}`;
+        
+        const toAccountCode = 'BANK-' + toAccount.rows[0].name.toUpperCase().replace(/\s+/g, '-');
+        const toAccountName = `${toAccount.rows[0].name} - ${toAccount.rows[0].bank_name}`;
+
+        // Get ledger account IDs
+        const fromLedgerResult = await query(
+          `SELECT get_or_create_ledger_account($1, $2, $3, $4, $5) as account_id`,
+          [fromAccountCode, fromAccountName, 'asset', 'bank', from_account_id]
+        );
+        const fromLedgerAccountId = fromLedgerResult.rows[0].account_id;
+
+        const toLedgerResult = await query(
+          `SELECT get_or_create_ledger_account($1, $2, $3, $4, $5) as account_id`,
+          [toAccountCode, toAccountName, 'asset', 'bank', to_account_id]
+        );
+        const toLedgerAccountId = toLedgerResult.rows[0].account_id;
+
+        // Get current balances from ledger
+        const fromBalanceResult = await query(
+          'SELECT COALESCE(balance, 0) as balance FROM ledger_accounts WHERE id = $1',
+          [fromLedgerAccountId]
+        );
+        const fromNewBalance = parseFloat(fromBalanceResult.rows[0].balance) - amount;
+
+        const toBalanceResult = await query(
+          'SELECT COALESCE(balance, 0) as balance FROM ledger_accounts WHERE id = $1',
+          [toLedgerAccountId]
+        );
+        const toNewBalance = parseFloat(toBalanceResult.rows[0].balance) + amount;
+
+        // Create CREDIT entry for source account (money going out)
+        await query(
+          `INSERT INTO ledger_entries 
+           (account_id, transaction_date, debit, credit, description, reference_number, created_by, balance_after)
+           VALUES ($1, $2, 0, $3, $4, $5, $6, $7)`,
+          [
+            fromLedgerAccountId,
+            transfer.transfer_date,
+            amount,
+            `Transfer to ${toAccount.rows[0].name} - ${transferDesc}`,
+            referenceNumber,
+            req.user?.userId,
+            fromNewBalance
+          ]
+        );
+
+        // Update source ledger account balance
+        await query(
+          'UPDATE ledger_accounts SET balance = balance - $1 WHERE id = $2',
+          [amount, fromLedgerAccountId]
+        );
+
+        // Create DEBIT entry for destination account (money coming in)
+        await query(
+          `INSERT INTO ledger_entries 
+           (account_id, transaction_date, debit, credit, description, reference_number, created_by, balance_after)
+           VALUES ($1, $2, $3, 0, $4, $5, $6, $7)`,
+          [
+            toLedgerAccountId,
+            transfer.transfer_date,
+            amount,
+            `Transfer from ${fromAccount.rows[0].name} - ${transferDesc}`,
+            referenceNumber,
+            req.user?.userId,
+            toNewBalance
+          ]
+        );
+
+        // Update destination ledger account balance
+        await query(
+          'UPDATE ledger_accounts SET balance = balance + $1 WHERE id = $2',
+          [amount, toLedgerAccountId]
         );
 
         await query('COMMIT');
