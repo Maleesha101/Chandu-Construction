@@ -199,9 +199,35 @@ export default function Approvals() {
                     
                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                       <span>Site: {(expense as any).site_name || '-'}</span>
-                      <span>MD: {(expense as any).md_name || '-'}</span>
+                      
                       <span>Bank: {(expense as any).bank_name || 'Cash'}</span>
-                      <span>Date: {format(new Date(expense.entry_date), 'MMM d, yyyy')}</span>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">Transaction Date:</span>
+                        {format(new Date(expense.entry_date), 'MMM d, yyyy')}
+                      </span>
+                      {(expense as any).from_person_name && (
+                        <span className="flex items-center gap-1">
+                          <span className="font-medium">Transaction By:</span>
+                          {(expense as any).from_person_name}
+                        </span>
+                      )}
+                    
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                       <span className="flex items-center gap-1">
+                        
+                        <span className="font-medium">Entered:</span>
+                        {format(new Date(expense.created_at), 'MMM d, yyyy h:mm a')}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">Entered By:</span>
+                        {(expense as any).entered_by_name || 'Unknown'}
+                      </span>
+                      
                     </div>
                   </div>
 
@@ -271,12 +297,31 @@ export default function Approvals() {
           </DialogHeader>
           
           {selectedExpense && (
-            <div className="py-4 border-y border-border">
-              <p className="font-medium">{selectedExpense.to_name}</p>
-              <p className="text-sm text-muted-foreground">{selectedExpense.purpose}</p>
-              <p className="text-lg font-semibold mt-2">
+            <div className="py-4 border-y border-border space-y-2">
+              <div>
+                <p className="font-medium">{selectedExpense.to_name}</p>
+                <p className="text-sm text-muted-foreground">{selectedExpense.purpose}</p>
+              </div>
+              <p className="text-lg font-semibold">
                 {formatCurrency(Number(selectedExpense.amount))}
               </p>
+              <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                <p>
+                  <span className="font-medium">Transaction Date:</span>{' '}
+                  {format(new Date(selectedExpense.entry_date), 'MMM d, yyyy')}
+                </p>
+                <p>
+                  <span className="font-medium">Entered:</span>{' '}
+                  {format(new Date(selectedExpense.created_at), 'MMM d, yyyy h:mm a')} by{' '}
+                  {(selectedExpense as any).entered_by_name || 'Unknown'}
+                </p>
+                {(selectedExpense as any).from_person_name && (
+                  <p>
+                    <span className="font-medium">Transaction By:</span>{' '}
+                    {(selectedExpense as any).from_person_name}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
