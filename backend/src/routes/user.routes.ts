@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../database/db';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
+import { validatePassword, getPasswordErrorMessage } from '../utils/passwordValidation';
+import { passwordChangeLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -43,7 +45,7 @@ router.get('/supervisors',
   }
 );
 
-// Get all users who can make transactions (boss, admin, md, worker)
+// Get all users who can make transactions (boss, admin, md, qs)
 router.get('/transaction-users',
   authenticate,
   async (req: AuthRequest, res: Response) => {
@@ -51,7 +53,7 @@ router.get('/transaction-users',
       const result = await query(
         `SELECT id, email, full_name, phone, role, active, created_at
         FROM users
-        WHERE role IN ('boss', 'admin', 'md', 'worker') AND active = true
+        WHERE role IN ('boss', 'admin', 'md', 'qs') AND active = true
         ORDER BY full_name`
       );
       res.json(result.rows);
@@ -143,6 +145,7 @@ router.delete('/:id',
 
 // Change password
 router.patch('/me/password',
+  passwordChangeLimiter,
   authenticate,
   async (req: AuthRequest, res: Response) => {
     try {
@@ -153,8 +156,13 @@ router.patch('/me/password',
         return res.status(400).json({ error: 'Current password and new password are required' });
       }
 
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      // Validate new password strength
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ 
+          error: 'Password does not meet requirements',
+          details: passwordValidation.errors 
+        });
       }
 
       // Get current user with password hash

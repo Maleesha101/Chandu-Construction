@@ -25,13 +25,50 @@ router.post('/',
     try {
       const { name, bank_name, account_number, balance, currency } = req.body;
 
-      const result = await query(
-        `INSERT INTO bank_accounts (name, bank_name, account_number, balance, currency)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [name, bank_name, account_number || null, balance || 0, currency || 'LKR']
-      );
+      // Start transaction to ensure both bank account and ledger account are created
+      await query('BEGIN');
 
-      res.status(201).json(result.rows[0]);
+      try {
+        // Create bank account
+        const result = await query(
+          `INSERT INTO bank_accounts (name, bank_name, account_number, balance, currency)
+           VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+          [name, bank_name, account_number || null, balance || 0, currency || 'LKR']
+        );
+
+        const bankAccount = result.rows[0];
+
+        // Create corresponding ledger account
+        const accountCode = 'BANK-' + name.toUpperCase().replace(/\s+/g, '-');
+        const accountName = `${name} - ${bank_name}`;
+
+        await query(
+          `SELECT get_or_create_ledger_account($1, $2, $3, $4, $5)`,
+          [accountCode, accountName, 'asset', 'bank', bankAccount.id]
+        );
+
+        // If initial balance > 0, create a ledger entry for it
+        if (balance && parseFloat(balance) > 0) {
+          await query(
+            `SELECT create_bank_deposit_ledger_entry($1, $2, $3, $4, $5, $6)`,
+            [
+              bankAccount.id,
+              balance,
+              `Initial balance for ${name}`,
+              `INIT-${bankAccount.id.substring(0, 8)}`,
+              new Date(),
+              req.user?.userId
+            ]
+          );
+        }
+
+        await query('COMMIT');
+
+        res.status(201).json(bankAccount);
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
+      }
     } catch (error) {
       console.error('Error creating bank account:', error);
       res.status(500).json({ error: 'Failed to create bank account' });
@@ -81,17 +118,51 @@ router.put('/:id',
         return res.status(400).json({ error: 'No fields to update' });
       }
 
-      values.push(id);
-      const result = await query(
-        `UPDATE bank_accounts SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-        values
-      );
+      // Start transaction
+      await query('BEGIN');
 
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Bank account not found' });
+      try {
+        values.push(id);
+        const result = await query(
+          `UPDATE bank_accounts SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+          values
+        );
+
+        if (result.rows.length === 0) {
+          await query('ROLLBACK');
+          return res.status(404).json({ error: 'Bank account not found' });
+        }
+
+        const bankAccount = result.rows[0];
+
+        // Update corresponding ledger account if name or bank_name changed
+        if (name !== undefined || bank_name !== undefined) {
+          const accountCode = 'BANK-' + bankAccount.name.toUpperCase().replace(/\s+/g, '-');
+          const accountName = `${bankAccount.name} - ${bankAccount.bank_name}`;
+
+          await query(
+            `UPDATE ledger_accounts 
+             SET account_code = $1, account_name = $2, active = $3
+             WHERE reference_id = $4 AND account_category = 'bank'`,
+            [accountCode, accountName, bankAccount.active, id]
+          );
+        } else if (active !== undefined) {
+          // Just update active status
+          await query(
+            `UPDATE ledger_accounts 
+             SET active = $1
+             WHERE reference_id = $2 AND account_category = 'bank'`,
+            [active, id]
+          );
+        }
+
+        await query('COMMIT');
+
+        res.json(bankAccount);
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
       }
-
-      res.json(result.rows[0]);
     } catch (error) {
       console.error('Error updating bank account:', error);
       res.status(500).json({ error: 'Failed to update bank account' });

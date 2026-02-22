@@ -3,12 +3,17 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+if (!process.env.DB_PASSWORD) {
+  console.error('❌ DB_PASSWORD environment variable is required');
+  process.exit(1);
+}
+
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'site_cash_flow',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  password: process.env.DB_PASSWORD,
 });
 
 async function runMigration() {

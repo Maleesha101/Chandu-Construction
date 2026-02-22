@@ -1,0 +1,97 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: chandu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-chandu_construction}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backup:/backup
+      - ./backend/src/database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - chandu-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chandu-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-5000}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-chandu_construction}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    ports:
+      - "${PORT:-5000}:5000"
+    networks:
+      - chandu-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Database backup service (runs daily)
+  backup:
+    image: postgres:16-alpine
+    container_name: chandu-backup
+    depends_on:
+      - postgres
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${DB_NAME:-chandu_construction}
+      PGUSER: ${DB_USER:-postgres}
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./backup:/backup
+      - ./backend/scripts/backup.sh:/backup.sh:ro
+    networks:
+      - chandu-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Backup service started. Waiting for database..."
+        sleep 30
+        while true; do
+          echo "Running backup at $(date)"
+          /backup.sh
+          echo "Backup completed. Next backup in 24 hours..."
+          sleep 86400
+        done
+
+networks:
+  chandu-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

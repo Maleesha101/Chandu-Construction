@@ -508,26 +508,12 @@ export default function NewExpense() {
                     </div>
                     <SelectItem value="Machine">Machine</SelectItem>
                     <SelectItem value="Rent">Rent</SelectItem>
-                    
-                    {/* Beneficiaries from managing_directors table */}
-                    {beneficiaries.length > 0 && (
-                      <>
-                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-2">
-                           Payment to Supervisors
-                        </div>
-                        {beneficiaries.map((supervisor) => (
-                          <SelectItem key={supervisor.id} value={supervisor.name}>
-                            {supervisor.name}
-                          </SelectItem>
-                        ))}
-                      </>
-                    )}
-                    
-                    {/* Supervisor users from users table */}
+
+                     {/* Supervisor users from users table */}
                     {supervisorUsers.length > 0 && (
                       <>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-2">
-                           User Accounts
+                           Papyement to supervisors
                         </div>
                         {supervisorUsers.map((user) => (
                           <SelectItem key={user.id} value={user.full_name}>
@@ -537,6 +523,21 @@ export default function NewExpense() {
                       </>
                     )}
                     
+                    {/* Beneficiaries from managing_directors table */}
+                    {beneficiaries.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 mt-2">
+                           Payment to third party (Beneficiaries)
+                        </div>
+                        {beneficiaries.map((supervisor) => (
+                          <SelectItem key={supervisor.id} value={supervisor.name}>
+                            {supervisor.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                    
+                   
                     {beneficiaries.length === 0 && supervisorUsers.length === 0 && (
                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
                         No supervisors available

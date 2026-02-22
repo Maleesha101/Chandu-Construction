@@ -1,18 +1,28 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt, { Secret } from 'jsonwebtoken';
+import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import { query } from '../database/db';
 import { AuthTokenPayload } from '../types/index';
+import { config } from '../config/env';
+import { validatePassword } from '../utils/passwordValidation';
+import { authLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
 // Register
 router.post('/register',
-  body('email').isEmail(),
-  body('password').isLength({ min: 6 }),
-  body('full_name').notEmpty(),
-  body('role').isIn(['boss', 'admin', 'qs', 'md', 'worker']),
+  authLimiter,
+  body('email').isEmail().withMessage('Invalid email address'),
+  body('password').custom((password) => {
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+      throw new Error(validation.errors.join(', '));
+    }
+    return true;
+  }),
+  body('full_name').notEmpty().withMessage('Full name is required'),
+  body('role').isIn(['boss', 'admin', 'qs', 'md', 'worker']).withMessage('Invalid role'),
   async (req: Request, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -54,8 +64,8 @@ router.post('/register',
 
       const token = jwt.sign(
         tokenPayload, 
-        process.env.JWT_SECRET as Secret,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
+        config.JWT_SECRET as Secret,
+        { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
 
       res.status(201).json({
@@ -77,6 +87,7 @@ router.post('/register',
 
 // Login
 router.post('/login',
+  authLimiter,
   body('email').isEmail(),
   body('password').notEmpty(),
   async (req: Request, res: Response) => {
@@ -115,8 +126,8 @@ router.post('/login',
 
       const token = jwt.sign(
         tokenPayload, 
-        process.env.JWT_SECRET as Secret,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
+        config.JWT_SECRET as Secret,
+        { expiresIn: config.JWT_EXPIRES_IN } as SignOptions
       );
 
       res.json({

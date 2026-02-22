@@ -1,0 +1,49 @@
+# Docker-specific ignores
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Development files
+node_modules/
+*.log
+logs/
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+
+# Test files
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+README*
+
+# Backup files
+backup/
+
+# Uploads
+uploads/
+
+# End of file
