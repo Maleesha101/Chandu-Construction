@@ -279,13 +279,16 @@ export default function NewExpense() {
         reference: formData.reference || undefined,
       });
 
+      // Find md_id if beneficiary is from managing_directors list
+      const selectedBeneficiary = beneficiaries.find(b => b.name === validatedData.beneficiary);
+      
       const payload = {
         to_name: validatedData.beneficiary,
         purpose: validatedData.purpose,
         amount: validatedData.amount,
-        site_id: validatedData.site_id || null,
+        site_id: validatedData.site_id || '',
         from_bank_account_id: validatedData.payment_source === 'bank_account' ? validatedData.from_bank_account_id : null,
-        md_id: null,
+        md_id: selectedBeneficiary ? selectedBeneficiary.id : null,
         payment_method: validatedData.payment_source === 'petty_cash' ? 'cash' : 'bank_transfer',
         reference: validatedData.reference || null,
         entry_date: validatedData.transaction_date,
@@ -301,6 +304,7 @@ export default function NewExpense() {
 
       // Create new expense directly
       setLoading(true);
+      console.log('Sending expense payload:', payload);
       await expenseApi.create(payload);
       toast.success('Expense submitted for approval successfully');
       navigate('/');
@@ -315,7 +319,14 @@ export default function NewExpense() {
         setErrors(fieldErrors);
       } else {
         console.error('Error processing expense:', error);
-        toast.error('Failed to process expense record');
+        // Check if it's a backend validation error
+        if (error && typeof error === 'object' && 'errors' in error) {
+          const backendErrors = (error as any).errors;
+          console.error('Backend validation errors:', backendErrors);
+          toast.error(`Validation error: ${backendErrors.map((e: any) => e.msg || e.message).join(', ')}`);
+        } else {
+          toast.error('Failed to process expense record');
+        }
       }
     } finally {
       if (!isEditMode) {

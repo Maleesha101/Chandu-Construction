@@ -122,13 +122,22 @@ router.post('/',
   authorize('boss', 'admin'),
   body('to_name').notEmpty().isLength({ max: 200 }),
   body('purpose').notEmpty().isLength({ max: 500 }),
-  body('amount').isNumeric().custom(value => value > 0),
-  body('site_id').notEmpty().isUUID(),
+  body('amount').custom((value) => {
+    const num = Number(value);
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Amount must be a positive number');
+    }
+    return true;
+  }),
+  body('site_id').optional({ values: 'falsy' }).isUUID(),
+  body('from_bank_account_id').optional({ values: 'falsy' }).isUUID(),
+  body('md_id').optional({ values: 'falsy' }).isUUID(),
   body('payment_method').optional().isString(),
   async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.error('Validation errors:', errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
@@ -144,6 +153,34 @@ router.post('/',
         entry_date,
         from_person_name
       } = req.body;
+      
+      // Normalize empty strings to null for optional UUID fields
+      const normalizedSiteId = site_id && site_id.trim() !== '' ? site_id : null;
+      const normalizedBankId = from_bank_account_id && from_bank_account_id.trim() !== '' ? from_bank_account_id : null;
+      const normalizedMdId = md_id && md_id.trim() !== '' ? md_id : null;
+      
+      console.log('Creating expense with data:', {
+        to_name,
+        purpose,
+        amount,
+        site_id: normalizedSiteId,
+        from_bank_account_id: normalizedBankId,
+        md_id: normalizedMdId,
+        payment_method,
+        reference,
+        entry_date,
+        from_person_name
+      });
+      
+      // Additional validation: Site is required for petty cash payments
+      if ((payment_method === 'cash' || payment_method === 'petty_cash') && !normalizedSiteId) {
+        return res.status(400).json({ 
+          errors: [{ 
+            msg: 'Site is required for petty cash payments', 
+            param: 'site_id' 
+          }] 
+        });
+      }
 
       const user = req.user!;
 
@@ -152,10 +189,10 @@ router.post('/',
 
       try {
         // If payment is from bank account, check balance and deduct
-        if (from_bank_account_id && (payment_method === 'bank_account' || payment_method === 'bank' || payment_method === 'bank_transfer')) {
+        if (normalizedBankId && (payment_method === 'bank_account' || payment_method === 'bank' || payment_method === 'bank_transfer')) {
           const bankResult = await query(
             'SELECT balance FROM bank_accounts WHERE id = $1',
-            [from_bank_account_id]
+            [normalizedBankId]
           );
 
           if (bankResult.rows.length === 0) {
@@ -170,7 +207,7 @@ router.post('/',
           // Deduct from bank account
           await query(
             'UPDATE bank_accounts SET balance = balance - $1 WHERE id = $2',
-            [amount, from_bank_account_id]
+            [amount, normalizedBankId]
           );
         }
 
@@ -185,9 +222,9 @@ router.post('/',
             to_name,
             purpose,
             amount,
-            site_id,
-            from_bank_account_id || null,
-            md_id || null,
+            normalizedSiteId,
+            normalizedBankId,
+            normalizedMdId,
             payment_method || 'cash',
             reference || null,
             entry_date || new Date(),
@@ -312,8 +349,14 @@ router.put('/:id',
   authorize('boss'),
   body('to_name').notEmpty().isLength({ max: 200 }),
   body('purpose').notEmpty().isLength({ max: 500 }),
-  body('amount').isNumeric().custom(value => value > 0),
-  body('site_id').notEmpty().isUUID(),
+  body('amount').custom((value) => {
+    const num = Number(value);
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Amount must be a positive number');
+    }
+    return true;
+  }),
+  body('site_id').optional().isUUID(),
   body('payment_method').optional().isString(),
   async (req: AuthRequest, res: Response) => {
     try {
