@@ -23,7 +23,7 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
-  role: z.enum(['boss', 'admin', 'qs', 'md', 'viewer']),
+  role: z.enum(['boss', 'admin', 'qs', 'md']),
 });
 
 export default function Auth() {
@@ -242,7 +242,6 @@ export default function Auth() {
                     <SelectItem value="admin">Admin / Office User</SelectItem>
                     <SelectItem value="qs">QS Department</SelectItem>
                     <SelectItem value="md">Managing Director</SelectItem>
-                    <SelectItem value="viewer">Viewer (Read-only)</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.role && (

@@ -1,5 +1,5 @@
 -- Create ENUM types
-CREATE TYPE app_role AS ENUM ('boss', 'admin', 'qs', 'md', 'viewer');
+CREATE TYPE app_role AS ENUM ('boss', 'admin', 'qs', 'md');
 CREATE TYPE expense_status AS ENUM ('pending', 'approved', 'rejected', 'wd_pending', 'wd_approved', 'wd_rejected');
 
 -- Users table (replaces auth.users from Supabase)

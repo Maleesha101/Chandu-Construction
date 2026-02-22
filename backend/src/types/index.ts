@@ -1,4 +1,4 @@
-export type AppRole = 'boss' | 'admin' | 'qs' | 'md' | 'viewer';
+export type AppRole = 'boss' | 'admin' | 'qs' | 'md';
 export type ExpenseStatus = 'pending' | 'approved' | 'rejected' | 'wd_pending' | 'wd_approved' | 'wd_rejected';
 
 export interface User {
