@@ -28,6 +28,7 @@ import mdRoutes from './routes/md.routes';
 import approvalRoutes from './routes/approval.routes';
 import userRoutes from './routes/user.routes';
 import ledgerRoutes from './routes/ledger.routes';
+import reportRoutes from './routes/report.routes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
@@ -56,6 +57,7 @@ app.use('/api/managing-directors', mdRoutes);
 app.use('/api/approvals', approvalRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ledger', ledgerRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Error handling
 app.use(errorHandler);

@@ -222,3 +222,100 @@ export interface DashboardStats {
   approvedThisWeek: number;
   rejectedThisWeek: number;
 }
+
+// Report Types
+export interface ReportSummary {
+  period: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  byStatus: {
+    status: string;
+    count: number;
+    total: number;
+  }[];
+  byPaymentMethod: {
+    payment_method: string;
+    count: number;
+    total: number;
+  }[];
+  dailyTrend: {
+    date: string;
+    count: number;
+    total: number;
+  }[];
+  topCategories: {
+    category: string;
+    count: number;
+    total: number;
+  }[];
+  overall: {
+    total_count: number;
+    total_amount: number;
+    avg_amount: number;
+    max_amount: number;
+    min_amount: number;
+  };
+}
+
+export interface SiteReport {
+  period: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  sites: {
+    id: string;
+    name: string;
+    code: string;
+    location: string;
+    expense_count: number;
+    total_spent: number;
+    cash_spent: number;
+    bank_spent: number;
+    cheque_spent: number;
+  }[];
+}
+
+export interface MDReport {
+  period: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  supervisors: {
+    id: string;
+    name: string;
+    phone: string;
+    expense_count: number;
+    total_spent: number;
+    avg_amount: number;
+  }[];
+}
+
+export interface BankReport {
+  period: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  banks: {
+    id: string;
+    name: string;
+    account_number: string;
+    current_balance: number;
+    transaction_count: number;
+    total_spent: number;
+  }[];
+}
+
+export interface WeeklyComparison {
+  weeks: {
+    week: string;
+    weekStart: string;
+    weekEnd: string;
+    count: number;
+    total: number;
+  }[];
+}

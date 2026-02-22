@@ -320,3 +320,26 @@ export const ledgerApi = {
     return apiFetch(`/ledger/user-cash-balance/${userId}`);
   },
 };
+
+// Report API
+export const reportApi = {
+  async getSummary(period: string = 'this-week') {
+    return apiFetch(`/reports/summary?period=${period}`);
+  },
+
+  async getBySite(period: string = 'this-week') {
+    return apiFetch(`/reports/by-site?period=${period}`);
+  },
+
+  async getByMD(period: string = 'this-week') {
+    return apiFetch(`/reports/by-md?period=${period}`);
+  },
+
+  async getByBank(period: string = 'this-week') {
+    return apiFetch(`/reports/by-bank?period=${period}`);
+  },
+
+  async getWeeklyComparison() {
+    return apiFetch('/reports/weekly-comparison');
+  },
+};
