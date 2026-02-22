@@ -13,6 +13,13 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { LedgerAccount, LedgerEntryDetail, ExpenseBreakdown } from '@/lib/types';
 import { ledgerApi } from '@/lib/apiClient';
@@ -90,6 +97,8 @@ export default function Ledger() {
   const [loading, setLoading] = useState(true);
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [transactionSearch, setTransactionSearch] = useState('');
+  const [transactionPeriod, setTransactionPeriod] = useState('all');
 
   useEffect(() => {
     fetchAccounts();
@@ -124,7 +133,13 @@ export default function Ledger() {
       return;
     }
 
-    const exportData = entries.map((entry) => ({
+    const filteredEntries = getFilteredEntries();
+    if (filteredEntries.length === 0) {
+      toast.error('No transactions match your filters');
+      return;
+    }
+
+    const exportData = filteredEntries.map((entry) => ({
       Date: format(new Date(entry.transaction_date), 'yyyy-MM-dd'),
       Description: entry.description || '-',
       'From Person': entry.from_person_name || '-',
@@ -151,6 +166,12 @@ export default function Ledger() {
       return;
     }
 
+    const filteredEntries = getFilteredEntries();
+    if (filteredEntries.length === 0) {
+      toast.error('No transactions match your filters');
+      return;
+    }
+
     const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
     
     // Add title
@@ -162,9 +183,15 @@ export default function Ledger() {
     doc.text(`Account Code: ${selectedAccount.account_code} | Type: ${selectedAccount.account_type.toUpperCase()}`, 14, 22);
     doc.text(`Current Balance: LKR ${Number(selectedAccount.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 14, 28);
     doc.text(`Export Date: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`, 14, 34);
+    if (transactionSearch || transactionPeriod !== 'all') {
+      const filterInfo = [];
+      if (transactionSearch) filterInfo.push(`Search: "${transactionSearch}"`);
+      if (transactionPeriod !== 'all') filterInfo.push(`Period: ${transactionPeriod}`);
+      doc.text(`Filters Applied: ${filterInfo.join(' | ')}`, 14, 40);
+    }
 
     // Prepare table data
-    const tableData = entries.map((entry) => [
+    const tableData = filteredEntries.map((entry) => [
       format(new Date(entry.transaction_date), 'yyyy-MM-dd'),
       entry.description || '-',
       entry.expense_to_name || '-',
@@ -181,7 +208,7 @@ export default function Ledger() {
     autoTable(doc, {
       head: [columns],
       body: tableData,
-      startY: 40,
+      startY: transactionSearch || transactionPeriod !== 'all' ? 46 : 40,
       theme: 'striped',
       headStyles: { fillColor: [59, 130, 246] },
       styles: { fontSize: 8 },
@@ -294,6 +321,78 @@ export default function Ledger() {
   const goBackToList = () => {
     setSelectedAccount(null);
     setEntries([]);
+    setTransactionSearch('');
+    setTransactionPeriod('all');
+  };
+
+  // Filter transactions based on search and time period
+  const getFilteredEntries = () => {
+    let filtered = entries;
+
+    // Apply search filter
+    if (transactionSearch) {
+      const searchLower = transactionSearch.toLowerCase();
+      filtered = filtered.filter((entry) => {
+        return (
+          entry.description?.toLowerCase().includes(searchLower) ||
+          entry.from_person_name?.toLowerCase().includes(searchLower) ||
+          entry.expense_to_name?.toLowerCase().includes(searchLower) ||
+          entry.site_name?.toLowerCase().includes(searchLower) ||
+          entry.expense_reference?.toLowerCase().includes(searchLower) ||
+          entry.reference_number?.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    // Apply time period filter
+    if (transactionPeriod !== 'all') {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      filtered = filtered.filter((entry) => {
+        const entryDate = new Date(entry.transaction_date);
+        
+        switch (transactionPeriod) {
+          case 'today':
+            return entryDate >= today;
+          case 'this-week': {
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            return entryDate >= weekStart;
+          }
+          case 'last-week': {
+            const lastWeekEnd = new Date(today);
+            lastWeekEnd.setDate(today.getDate() - today.getDay());
+            const lastWeekStart = new Date(lastWeekEnd);
+            lastWeekStart.setDate(lastWeekEnd.getDate() - 7);
+            return entryDate >= lastWeekStart && entryDate < lastWeekEnd;
+          }
+          case 'this-month': {
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            return entryDate >= monthStart;
+          }
+          case 'last-month': {
+            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+            return entryDate >= lastMonthStart && entryDate < lastMonthEnd;
+          }
+          case 'last-30-days': {
+            const thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            return entryDate >= thirtyDaysAgo;
+          }
+          case 'last-90-days': {
+            const ninetyDaysAgo = new Date(today);
+            ninetyDaysAgo.setDate(today.getDate() - 90);
+            return entryDate >= ninetyDaysAgo;
+          }
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
   };
 
   const filteredAccounts = accounts.filter(
@@ -336,8 +435,9 @@ export default function Ledger() {
 
   // Account Detail View
   if (selectedAccount) {
-    const totalDebits = entries.reduce((sum, e) => sum + Number(e.debit), 0);
-    const totalCredits = entries.reduce((sum, e) => sum + Number(e.credit), 0);
+    const filteredEntries = getFilteredEntries();
+    const totalDebits = filteredEntries.reduce((sum, e) => sum + Number(e.debit), 0);
+    const totalCredits = filteredEntries.reduce((sum, e) => sum + Number(e.credit), 0);
     const Icon = getAccountIcon(selectedAccount.account_category);
 
     return (
@@ -398,8 +498,13 @@ export default function Ledger() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{entries.length}</div>
-              <p className="text-xs text-muted-foreground">Total entries</p>
+              <div className="text-2xl font-bold">{filteredEntries.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {filteredEntries.length !== entries.length 
+                  ? `Showing ${filteredEntries.length} of ${entries.length} entries`
+                  : 'Total entries'
+                }
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -442,6 +547,76 @@ export default function Ledger() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Search and Filter Controls */}
+            <div className="mb-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Input
+                    placeholder="Search transactions (description, beneficiary, site, reference...)"
+                    value={transactionSearch}
+                    onChange={(e) => setTransactionSearch(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Select value={transactionPeriod} onValueChange={setTransactionPeriod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select time period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="this-week">This Week</SelectItem>
+                      <SelectItem value="last-week">Last Week</SelectItem>
+                      <SelectItem value="this-month">This Month</SelectItem>
+                      <SelectItem value="last-month">Last Month</SelectItem>
+                      <SelectItem value="last-30-days">Last 30 Days</SelectItem>
+                      <SelectItem value="last-90-days">Last 90 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Active Filters Display */}
+              {(transactionSearch || transactionPeriod !== 'all') && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-muted-foreground">Active filters:</span>
+                  {transactionSearch && (
+                    <Badge variant="secondary" className="gap-1">
+                      Search: {transactionSearch}
+                      <button
+                        onClick={() => setTransactionSearch('')}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  )}
+                  {transactionPeriod !== 'all' && (
+                    <Badge variant="secondary" className="gap-1">
+                      Period: {transactionPeriod.replace(/-/g, ' ')}
+                      <button
+                        onClick={() => setTransactionPeriod('all')}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setTransactionSearch('');
+                      setTransactionPeriod('all');
+                    }}
+                    className="h-6 text-xs"
+                  >
+                    Clear all filters
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {loadingEntries ? (
               <div className="text-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
@@ -465,14 +640,17 @@ export default function Ledger() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {entries.length === 0 ? (
+                    {filteredEntries.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={selectedAccount.account_type === 'expense' ? 6 : 7} className="text-center py-8 text-muted-foreground">
-                          No transactions found
+                          {entries.length === 0 
+                            ? 'No transactions found'
+                            : 'No transactions match your search criteria'
+                          }
                         </TableCell>
                       </TableRow>
                     ) : (
-                      entries.map((entry) => (
+                      filteredEntries.map((entry) => (
                         <TableRow key={entry.id}>
                           <TableCell className="text-sm">
                             {format(new Date(entry.transaction_date), 'MMM d, yyyy')}
