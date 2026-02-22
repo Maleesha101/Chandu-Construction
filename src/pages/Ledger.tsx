@@ -267,6 +267,7 @@ export default function Ledger() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Beneficiary</TableHead>
                       <TableHead>Reference</TableHead>
                       <TableHead className="text-right">
                         {selectedAccount.account_type === 'expense' ? 'Amount (Debit)' : 'Debit'}
@@ -280,7 +281,7 @@ export default function Ledger() {
                   <TableBody>
                     {entries.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={selectedAccount.account_type === 'expense' ? 5 : 6} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={selectedAccount.account_type === 'expense' ? 6 : 7} className="text-center py-8 text-muted-foreground">
                           No transactions found
                         </TableCell>
                       </TableRow>
@@ -300,6 +301,9 @@ export default function Ledger() {
                                 <p className="text-xs text-muted-foreground">Site: {entry.site_name}</p>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {entry.expense_to_name || '-'}
                           </TableCell>
                           <TableCell className="text-sm font-mono text-muted-foreground">
                             {entry.reference_number || '-'}
