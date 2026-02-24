@@ -26,9 +26,9 @@ See [SECURITY.md](SECURITY.md) for full security audit.
 
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete production deployment guide
 - **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Pre/post deployment checklist
-- **[MIGRATIONS.md](MIGRATIONS.md)** - Automated database migration system
+- **[DATABASE_DOCUMENTATION.md](DATABASE_DOCUMENTATION.md)** - Database schema documentation
 - **[SECURITY.md](SECURITY.md)** - Security checklist and best practices
-- **[PRODUCTION_READY_SUMMARY.md](PRODUCTION_READY_SUMMARY.md)** - Implementation summary
+- **[LEDGER_SYSTEM.md](LEDGER_SYSTEM.md)** - Double-entry ledger system guide
 - **[Backend Tests README](backend/tests/README.md)** - Testing documentation
 
 ---
@@ -75,16 +75,14 @@ cp .env.example .env
 # Edit .env with your settings
 
 # 3. Set up database
-psql -U postgres -c "CREATE DATABASE site_cash_flow;"
-psql -U postgres -d site_cash_flow -f src/database/schema.sql
+psql -U postgres -c "CREATE DATABASE chandu_construction;"
+psql -U postgres -d chandu_construction -f src/database/schema.sql
 
-# 4. Run migrations (automated)
-npm run migrate
-# Or see MIGRATIONS.md for more options
-
-# 5. Build and start
+# 4. Build and start backend
 npm run build
 npm start
+
+# Backend will be running at http://localhost:5000
 ```
 
 ### Frontend Setup

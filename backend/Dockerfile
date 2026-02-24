@@ -1,7 +1,7 @@
 # Use Node.js LTS version
 FROM node:20-alpine AS base
 
-# Install dependencies for PostgreSQL client
+# Install dependencies for PostgreSQL client (for healthcheck and backups)
 RUN apk add --no-cache postgresql-client
 
 WORKDIR /app
@@ -39,15 +39,16 @@ COPY --from=base --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=base --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=base --chown=nodejs:nodejs /app/package*.json ./
 
-# Copy migration files and scripts
-COPY --chown=nodejs:nodejs src/database/migrations ./src/database/migrations
-COPY --chown=nodejs:nodejs scripts ./scripts
-COPY --chown=nodejs:nodejs docker-entrypoint.sh ./
+# Copy database schema (for reference/initialization)
+COPY --chown=nodejs:nodejs src/database/schema.sql ./src/database/
+
+# Copy backup scripts
+COPY --chown=nodejs:nodejs scripts/backup*.sh ./scripts/
 
 # Create necessary directories and set permissions (as root)
 RUN mkdir -p logs uploads && \
-    chmod +x docker-entrypoint.sh scripts/*.sh && \
-    chown -R nodejs:nodejs logs uploads
+    chmod +x scripts/*.sh && \
+    chown -R nodejs:nodejs logs uploads scripts
 
 # Switch to non-root user
 USER nodejs
@@ -59,5 +60,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start application with migrations
-CMD ["./docker-entrypoint.sh"]
+# Start application
+CMD ["node", "dist/server.js"]

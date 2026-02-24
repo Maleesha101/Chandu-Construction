@@ -4,8 +4,7 @@
 ###################################################
 
 @baseUrl = http://localhost:5000
-@token =qVShc3iQo3+5FGaPxy4XZtdy4KhTICKyJsw7HqDGS0qOJ+hKwwJU33jUHVSDMAONMFMe3yGKe+n1Tycy92W1Vg==
-
+@token =
 
 ###################################################
 # HEALTH CHECK
@@ -24,11 +23,11 @@ POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-  "email": "test@example.com",
-  "password": "password123",
-  "full_name": "Test User",
+  "email": "Thivina@gmail.com",
+  "password": "Thivina@123",
+  "full_name": "Thivina Chandunu",
   "phone": "0771234567",
-  "role": "admin"
+  "role": "boss"
 }
 
 ### Login
