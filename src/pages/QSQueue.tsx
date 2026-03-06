@@ -147,7 +147,6 @@ export default function QSQueue() {
                     
                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                       <span>Site: {(expense as any).site_name || '-'}</span>
-                      <span>MD: {(expense as any).md_name || '-'}</span>
                       <span>Date: {format(new Date(expense.entry_date), 'MMM d, yyyy')}</span>
                     </div>
                   </div>

@@ -14,7 +14,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
-            e.qs_notes as from_person_name,
+            md.name as from_person_name,
             s.name as site_name,
             s.code as site_code,
             b.name as bank_name,
@@ -79,7 +79,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
-            e.qs_notes as from_person_name,
+            md.name as from_person_name,
             s.name as site_name,
             b.name as bank_name,
             md.name as md_name
@@ -312,14 +312,23 @@ router.patch('/:id/status',
           );
         }
 
-        // Update status
-        const result = await query(
-          `UPDATE expense_records 
-            SET status = $1, updated_at = NOW()
-            WHERE id = $2
-           RETURNING *`,
-          [status, id]
-        );
+        // Update status and save comments appropriately
+        // For wd_pending: save to wd_reason field
+        // For wd_approved/wd_rejected: save to qs_notes field
+        let updateQuery = `UPDATE expense_records SET status = $1, updated_at = NOW()`;
+        const params = [status, id];
+        
+        if (status === 'wd_pending' && comments) {
+          updateQuery += `, wd_reason = $2`;
+          params.splice(1, 0, comments);
+        } else if ((status === 'wd_approved' || status === 'wd_rejected') && comments) {
+          updateQuery += `, qs_notes = $2`;
+          params.splice(1, 0, comments);
+        }
+        
+        updateQuery += ` WHERE id = $${params.length} RETURNING *`;
+
+        const result = await query(updateQuery, params);
 
         // Record approval
         if (comments) {

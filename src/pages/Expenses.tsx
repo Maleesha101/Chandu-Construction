@@ -29,6 +29,13 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { expenseApi, siteApi } from '@/lib/apiClient';
 import { ExpenseRecord, Site } from '@/lib/types';
@@ -57,6 +64,8 @@ export default function Expenses() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedExpenseDetail, setSelectedExpenseDetail] = useState<ExpenseRecord | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -124,6 +133,11 @@ export default function Expenses() {
 
   const handleEditClick = (expenseId: string) => {
     navigate(`/expenses/edit/${expenseId}`);
+  };
+
+  const handleViewDetails = (expense: ExpenseRecord) => {
+    setSelectedExpenseDetail(expense);
+    setDetailModalOpen(true);
   };
 
   return (
@@ -240,6 +254,14 @@ export default function Expenses() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewDetails(expense)}
+                        title="View details"
+                      >
+                        <Eye className="h-4 w-4 text-blue-600" />
+                      </Button>
                       {isRole(['boss']) && (
                         <>
                           <Button
@@ -311,6 +333,109 @@ export default function Expenses() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Expense Details Modal */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Expense Details</DialogTitle>
+            <DialogDescription>
+              Complete information for this expense record
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedExpenseDetail && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Date</p>
+                    <p className="text-base font-semibold">
+                      {format(new Date(selectedExpenseDetail.entry_date), 'MMM d, yyyy')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Status</p>
+                    <p className="mt-1">
+                      <StatusBadge status={selectedExpenseDetail.status} />
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Recipient</p>
+                  <p className="text-base font-semibold">{selectedExpenseDetail.to_name}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Purpose</p>
+                  <p className="text-base">{selectedExpenseDetail.purpose}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Amount</p>
+                  <p className="text-2xl font-semibold text-primary">
+                    {formatCurrency(Number(selectedExpenseDetail.amount))}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Site</p>
+                    <p className="text-base">{selectedExpenseDetail.site_name || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Bank/Cash</p>
+                    <p className="text-base">{selectedExpenseDetail.bank_name || 'Cash'}</p>
+                  </div>
+                </div>
+
+                {selectedExpenseDetail.reference && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Reference</p>
+                    <p className="text-base">{selectedExpenseDetail.reference}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* WD Reason - if applicable */}
+              {selectedExpenseDetail.wd_reason && (
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Withdrawal Reason</p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-700">{selectedExpenseDetail.wd_reason}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* QS Notes - Show if record is approved/rejected */}
+              {['approved', 'rejected', 'wd_approved', 'wd_rejected'].includes(selectedExpenseDetail.status) && (
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">QS Notes</p>
+                  {selectedExpenseDetail.qs_notes ? (
+                    <div className={`rounded-lg p-3 ${
+                      selectedExpenseDetail.status.includes('approved')
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-red-50 border border-red-200'
+                    }`}>
+                      <p className={`text-sm ${
+                        selectedExpenseDetail.status.includes('approved')
+                          ? 'text-green-700'
+                          : 'text-red-700'
+                      }`}>
+                        {selectedExpenseDetail.qs_notes}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No QS notes provided</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
