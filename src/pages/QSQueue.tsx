@@ -96,7 +96,7 @@ export default function QSQueue() {
     setQsNotes('');
   };
 
-  if (!isRole(['qs', 'boss'])) {
+  if (!isRole(['qs', 'boss', 'admin'])) {
     return (
       <DashboardLayout title="QS Queue">
         <div className="stat-card text-center py-12">
@@ -146,7 +146,7 @@ export default function QSQueue() {
                     )}
                     
                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                      <span>Site: {(expense as any).site_name || '-'}</span>
+                      <span>Site: {expense.site_name || '-'}</span>
                       <span>Date: {format(new Date(expense.entry_date), 'MMM d, yyyy')}</span>
                     </div>
                   </div>

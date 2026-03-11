@@ -37,8 +37,16 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/setup-role" element={<SetupRole />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/expenses" element={<Expenses />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute allowedRoles={['boss', 'md']}>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/expenses" element={
+              <ProtectedRoute allowedRoles={['boss', 'admin']}>
+                <Expenses />
+              </ProtectedRoute>
+            } />
             <Route path="/expenses/new" element={
               <ProtectedRoute allowedRoles={['boss', 'admin']}>
                 <NewExpense />
@@ -49,24 +57,56 @@ const App = () => (
                 <NewExpense />
               </ProtectedRoute>
             } />
-            <Route path="/approvals" element={<Approvals />} />
-            <Route path="/qs-queue" element={<QSQueue />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route path="/approvals" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <Approvals />
+              </ProtectedRoute>
+            } />
+            <Route path="/qs-queue" element={
+              <ProtectedRoute allowedRoles={['boss', 'admin', 'qs']}>
+                <QSQueue />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <Reports />
+              </ProtectedRoute>
+            } />
             <Route path="/ledger" element={
               <ProtectedRoute allowedRoles={['boss', 'admin']}>
                 <Ledger />
               </ProtectedRoute>
             } />
-            <Route path="/sites" element={<Sites />} />
-            <Route path="/sites/:siteId" element={<SiteExpenses />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/users/:userId" element={<SupervisorDetails />} />
+            <Route path="/sites" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <Sites />
+              </ProtectedRoute>
+            } />
+            <Route path="/sites/:siteId" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <SiteExpenses />
+              </ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <Users />
+              </ProtectedRoute>
+            } />
+            <Route path="/users/:userId" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <SupervisorDetails />
+              </ProtectedRoute>
+            } />
             <Route path="/settings/banks" element={
-              <ProtectedRoute allowedRoles={['boss', 'admin']}>
+              <ProtectedRoute allowedRoles={['boss']}>
                 <BankManagement />
               </ProtectedRoute>
             } />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={
+              <ProtectedRoute allowedRoles={['boss']}>
+                <Settings />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

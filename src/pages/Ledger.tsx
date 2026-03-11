@@ -90,6 +90,7 @@ function getAccountTypeColor(type: string) {
 
 export default function Ledger() {
   const { isRole } = useAuth();
+  const isAdmin = isRole('admin');
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<LedgerAccount | null>(null);
   const [entries, setEntries] = useState<LedgerEntryDetail[]>([]);
@@ -292,6 +293,9 @@ export default function Ledger() {
 
   const getFilteredAccounts = () => {
     return accounts.filter((account) => {
+      const isVisibleForRole = !isAdmin || account.account_type === 'expense' || account.account_category === 'petty_cash';
+      if (!isVisibleForRole) return false;
+
       const matchesSearch = searchTerm
         ? account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           account.account_code.toLowerCase().includes(searchTerm.toLowerCase())
@@ -399,6 +403,7 @@ export default function Ledger() {
     (account) =>
       // Show assets and expenses, hide liabilities
       account.account_type !== 'liability' &&
+      (!isAdmin || account.account_type === 'expense' || account.account_category === 'petty_cash') &&
       (account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         account.account_code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -412,10 +417,12 @@ export default function Ledger() {
   }, {} as Record<string, LedgerAccount[]>);
 
   const totalAssets = accounts
+    .filter((a) => !isAdmin || a.account_category === 'petty_cash')
     .filter((a) => a.account_type === 'asset')
     .reduce((sum, a) => sum + Number(a.balance), 0);
 
   const totalExpenses = accounts
+    .filter((a) => !isAdmin || a.account_type === 'expense')
     .filter((a) => a.account_type === 'expense')
     .reduce((sum, a) => sum + Number(a.balance), 0);
 
@@ -765,13 +772,13 @@ export default function Ledger() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="all" className="space-y-6">
+      <Tabs defaultValue={isAdmin ? 'petty_cash' : 'all'} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="all">All Accounts</TabsTrigger>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
+          {!isAdmin && <TabsTrigger value="all">All Accounts</TabsTrigger>}
+          {!isAdmin && <TabsTrigger value="assets">Assets</TabsTrigger>}
           <TabsTrigger value="petty_cash">Petty Cash</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="breakdown">Expense Breakdown</TabsTrigger>
+          {!isAdmin && <TabsTrigger value="breakdown">Expense Breakdown</TabsTrigger>}
         </TabsList>
 
         <div className="mb-4 flex items-center justify-between">
@@ -794,7 +801,8 @@ export default function Ledger() {
         </div>
 
         {/* All Accounts Tab */}
-        <TabsContent value="all" className="space-y-6">
+        {!isAdmin && (
+          <TabsContent value="all" className="space-y-6">
           {loading ? (
             <div className="stat-card text-center py-12">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
@@ -869,10 +877,12 @@ export default function Ledger() {
               ))}
             </>
           )}
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {/* Assets Tab */}
-        <TabsContent value="assets">
+        {!isAdmin && (
+          <TabsContent value="assets">
           <Card>
             <CardHeader>
               <CardTitle>Asset Accounts</CardTitle>
@@ -917,7 +927,8 @@ export default function Ledger() {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {/* Petty Cash Tab */}
         <TabsContent value="petty_cash">
@@ -1027,7 +1038,8 @@ export default function Ledger() {
         </TabsContent>
 
         {/* Expense Breakdown Tab */}
-        <TabsContent value="breakdown">
+        {!isAdmin && (
+          <TabsContent value="breakdown">
           <Card>
             <CardHeader>
               <CardTitle>Expense Breakdown</CardTitle>
@@ -1076,7 +1088,8 @@ export default function Ledger() {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
+          </TabsContent>
+        )}
       </Tabs>
     </DashboardLayout>
   );

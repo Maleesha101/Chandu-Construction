@@ -24,7 +24,8 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (userRole && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/dashboard" replace />;
+    const fallbackRoute = userRole === 'qs' ? '/qs-queue' : userRole === 'admin' ? '/expenses' : '/dashboard';
+    return <Navigate to={fallbackRoute} replace />;
   }
 
   return <>{children}</>;

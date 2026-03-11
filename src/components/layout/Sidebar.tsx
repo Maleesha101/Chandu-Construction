@@ -25,13 +25,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['boss', 'admin', 'qs', 'md'] },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['boss'] },
   { name: 'Expenses', href: '/expenses', icon: Receipt, roles: ['boss', 'admin'] },
   { name: 'Approvals', href: '/approvals', icon: CheckCircle, roles: ['boss'] },
-  { name: 'QS Queue', href: '/qs-queue', icon: FileCheck, roles: ['qs', 'boss'] },
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['boss', 'admin'] },
+  { name: 'QS Queue', href: '/qs-queue', icon: FileCheck, roles: ['qs', 'boss', 'admin'] },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['boss'] },
   { name: 'Ledger', href: '/ledger', icon: BookOpen, roles: ['boss', 'admin'] },
-  { name: 'Sites', href: '/sites', icon: Building2, roles: ['boss', 'admin'] },
+  { name: 'Sites', href: '/sites', icon: Building2, roles: ['boss'] },
   { name: 'Users', href: '/users', icon: Users, roles: ['boss'] },
 ];
 
