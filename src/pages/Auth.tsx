@@ -4,13 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+
 import { Wallet, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppRole } from '@/lib/types';
@@ -110,49 +104,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-navy-light" />
-        <div className="relative z-10 flex flex-col justify-between p-12 text-primary-foreground">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-foreground/20">
-              <Wallet className="h-6 w-6" />
-            </div>
-            <span className="text-xl font-semibold">CC</span>
-          </div>
-          
-          <div className="space-y-6">
-            <h2 className="text-4xl font-bold leading-tight">
-              Streamline Your<br />
-              Construction Finance
-            </h2>
-            <p className="text-lg text-primary-foreground/80 max-w-md">
-              Track expenses, manage approvals, and keep your construction sites running smoothly with complete financial visibility.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-6">
-            <div className="space-y-1">
-              <p className="text-3xl font-bold">100%</p>
-              <p className="text-sm text-primary-foreground/70">Expense Visibility</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-bold">Real-time</p>
-              <p className="text-sm text-primary-foreground/70">Approval Tracking</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-bold">Multi-site</p>
-              <p className="text-sm text-primary-foreground/70">Management</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute -right-32 -top-32 h-64 w-64 rounded-full bg-primary-foreground/5" />
-        <div className="absolute -right-16 top-1/3 h-48 w-48 rounded-full bg-primary-foreground/5" />
-        <div className="absolute -left-16 -bottom-16 h-56 w-56 rounded-full bg-primary-foreground/5" />
-      </div>
-
+  
       {/* Right Panel - Auth Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
@@ -230,26 +182,6 @@ export default function Auth() {
               )}
             </div>
 
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={role} onValueChange={(value) => setRole(value as AppRole)}>
-                  <SelectTrigger className={errors.role ? 'border-destructive' : ''}>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="boss">Boss (Owner)</SelectItem>
-                    <SelectItem value="admin">Admin / Office User</SelectItem>
-                    <SelectItem value="qs">QS Department</SelectItem>
-                    <SelectItem value="md">Managing Director</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.role && (
-                  <p className="text-xs text-destructive">{errors.role}</p>
-                )}
-              </div>
-            )}
-
             <Button
               type="submit"
               className="w-full"
@@ -259,21 +191,6 @@ export default function Auth() {
               {isLogin ? 'Sign In' : 'Create Account'}
             </Button>
           </form>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setErrors({});
-              }}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : 'Already have an account? Sign in'}
-            </button>
-          </div>
         </div>
       </div>
     </div>

@@ -32,6 +32,18 @@ router.post('/register',
 
       const { email, password, full_name, phone, role } = req.body;
 
+      // Check if trying to create a boss account
+      if (role === 'boss') {
+        const existingBoss = await query(
+          'SELECT id FROM users WHERE role = $1',
+          ['boss']
+        );
+
+        if (existingBoss.rows.length > 0) {
+          return res.status(400).json({ msg: 'Only one boss account can be created for the system' });
+        }
+      }
+
       // Check if user exists
       const existingUser = await query(
         'SELECT id FROM users WHERE email = $1',

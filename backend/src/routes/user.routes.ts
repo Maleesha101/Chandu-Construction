@@ -94,6 +94,18 @@ router.patch('/:id/role',
     try {
       const { id } = req.params;
       const { role } = req.body;
+      // Check if trying to assign boss role
+      if (role === 'boss') {
+        const existingBoss = await query(
+          'SELECT id FROM users WHERE role = $1 AND id != $2',
+          ['boss', id]
+        );
+
+        if (existingBoss.rows.length > 0) {
+          return res.status(400).json({ msg: 'Only one boss account can exist in the system' });
+        }
+      }
+
 
       const result = await query(
         'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, email, full_name, role',
