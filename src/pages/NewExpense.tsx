@@ -231,7 +231,8 @@ export default function NewExpense() {
       setFormData({ ...formData, from_person: newSupervisorData.full_name.trim() });
     } catch (error: any) {
       console.error('Error adding supervisor:', error);
-      toast.error(error.message || 'Failed to add supervisor');
+      const errorMsg = error?.response?.data?.msg || error?.message || 'Failed to add supervisor';
+      toast.error(errorMsg);
     } finally {
       setAddingSupervisor(false);
     }
@@ -422,7 +423,7 @@ export default function NewExpense() {
                     )}
                   </SelectContent>
                 </Select>
-                {isRole(['boss', 'admin']) && (
+                {isRole(['boss']) && (
                   <Button
                     type="button"
                     variant="outline"

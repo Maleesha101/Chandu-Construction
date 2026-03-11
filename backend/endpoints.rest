@@ -21,7 +21,7 @@ GET {{baseUrl}}/api/health
 ### Register User
 POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
-
+  
 {
   "email": "Thivina1@gmail.com",
   "password": "Thivina@123",
