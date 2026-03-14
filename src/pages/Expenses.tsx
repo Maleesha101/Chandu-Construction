@@ -64,6 +64,7 @@ export default function Expenses() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedExpenseDetail, setSelectedExpenseDetail] = useState<ExpenseRecord | null>(null);
 
@@ -105,6 +106,7 @@ export default function Expenses() {
 
   const handleDeleteClick = (expense: ExpenseRecord) => {
     setExpenseToDelete(expense);
+    setDeleteConfirmInput('');
     setDeleteDialogOpen(true);
   };
 
@@ -128,6 +130,7 @@ export default function Expenses() {
       setDeleting(false);
       setDeleteDialogOpen(false);
       setExpenseToDelete(null);
+      setDeleteConfirmInput('');
     }
   };
 
@@ -320,13 +323,23 @@ export default function Expenses() {
                 <p><strong>Purpose:</strong> {expenseToDelete?.purpose}</p>
               </div>
             </AlertDialogDescription>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium">Type <span className="font-mono font-bold text-red-600">CONFIRM</span> to proceed:</p>
+              <Input
+                value={deleteConfirmInput}
+                onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                placeholder="Type CONFIRM"
+                disabled={deleting}
+                autoComplete="off"
+              />
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              disabled={deleting}
-              className="bg-red-600 hover:bg-red-700"
+              disabled={deleting || deleteConfirmInput !== 'CONFIRM'}
+              className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
             >
               {deleting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>

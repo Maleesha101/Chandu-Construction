@@ -5,11 +5,25 @@
 
 set -e
 
+# Load .env file from backend directory if present and vars not already set
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../.env"
+if [ -f "$ENV_FILE" ]; then
+  # shellcheck disable=SC1090
+  set -a; source "$ENV_FILE"; set +a
+fi
+
 # Configuration
-BACKUP_DIR="${BACKUP_DIR:-/backup}"
+BACKUP_DIR="${BACKUP_DIR:-/home/maleesha/Projects/Web/Chandu-Construction/backup}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILE="$BACKUP_DIR/backup_${TIMESTAMP}.sql.gz"
+
+# Database connection (from env vars or defaults from .env.example)
+DB_HOST="${DB_HOST:-postgres}"
+DB_PORT="${DB_PORT:-5432}"
+DB_NAME="${DB_NAME:-site_cash_flow}"
+DB_USER="${DB_USER:-postgres}"
 
 # Ensure backup directory exists
 mkdir -p "$BACKUP_DIR"
@@ -20,7 +34,12 @@ echo "============================================"
 
 # Create backup
 echo "Creating backup..."
-pg_dump --verbose --clean --if-exists --no-owner --no-acl \
+PGPASSWORD="$DB_PASSWORD" pg_dump \
+  --host="$DB_HOST" \
+  --port="$DB_PORT" \
+  --username="$DB_USER" \
+  --dbname="$DB_NAME" \
+  --verbose --clean --if-exists --no-owner --no-acl \
   | gzip > "$BACKUP_FILE"
 
 if [ $? -eq 0 ]; then
