@@ -1,9 +1,11 @@
 import dotenv from 'dotenv';
 
-// Load environment variables
-const result = dotenv.config();
-if (result.error) {
-  console.error('❌ Error loading .env file:', result.error);
+// Load .env file only in non-production or when the file exists (Docker injects env vars directly)
+if (process.env.NODE_ENV !== 'production') {
+  const result = dotenv.config();
+  if (result.error) {
+    console.warn('⚠️  No .env file found, relying on environment variables');
+  }
 }
 
 interface EnvironmentConfig {
