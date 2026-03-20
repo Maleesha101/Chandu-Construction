@@ -2,6 +2,36 @@
 
 A comprehensive expense and cash flow management system for construction sites with multi-level approval workflows, ledger tracking, and financial reporting.
 
+## 📸 App Walkthrough
+
+### Login
+
+![Login Screen](docs/screenshots/01-login.png)
+
+### Dashboard
+
+![Dashboard Overview](docs/screenshots/02-dashboard.png)
+
+### Expenses
+
+![Expense Management](docs/screenshots/03-expenses.png)
+
+### Approvals
+
+![Approval Workflow](docs/screenshots/04-approvals.png)
+
+### Reports
+
+![Reports and Analytics](docs/screenshots/05-reports.png)
+
+### Ledger
+
+![Reports and Analytics](docs/screenshots/06-ledger.png)
+
+### Site Management
+
+![User Management](docs/screenshots/06-sites.png)
+
 ## 🎯 Production Readiness Status
 
 **Current Status: ✅ PRODUCTION READY (8.5/10)**

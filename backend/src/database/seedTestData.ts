@@ -285,9 +285,14 @@ async function seedLedgerEntries(count: number = 1000) {
     console.error('❌ Cannot seed ledger entries: missing required data');
     return;
   }
+
+  const targetLedgerAccountId = randomElement(ledgerAccounts.rows).id;
+  const guaranteedEntriesForOneLedger = Math.min(count, 120);
   
   for (let i = 0; i < count; i++) {
-    const accountId = randomElement(ledgerAccounts.rows).id;
+    const accountId = i < guaranteedEntriesForOneLedger
+      ? targetLedgerAccountId
+      : randomElement(ledgerAccounts.rows).id;
     const expenseRecordId = expenseRecords.rows.length > 0 ? (Math.random() > 0.5 ? randomElement(expenseRecords.rows).id : null) : null;
     const isDebit = randomBoolean();
     const amount = randomFloat(1000, 500000);
@@ -303,6 +308,7 @@ async function seedLedgerEntries(count: number = 1000) {
     
     if ((i + 1) % 100 === 0) console.log(`  - Inserted ${i + 1}/${count} ledger entries`);
   }
+  console.log(`  - Guaranteed ${guaranteedEntriesForOneLedger} entries for ledger account ID: ${targetLedgerAccountId}`);
   console.log('✅ Ledger entries seeded');
 }
 
