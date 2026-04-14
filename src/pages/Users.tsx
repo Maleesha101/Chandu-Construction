@@ -51,6 +51,7 @@ const roleColors: Record<AppRole, string> = {
   admin: 'bg-blue-100 text-blue-800',
   qs: 'bg-purple-100 text-purple-800',
   md: 'bg-emerald-100 text-emerald-800',
+  user: 'bg-gray-100 text-gray-800',
 };
 
 const roleLabels: Record<AppRole, string> = {
@@ -58,6 +59,7 @@ const roleLabels: Record<AppRole, string> = {
   admin: 'Admin',
   qs: 'QS Dept',
   md: 'Supervisor',
+  user: 'User',
 };
 
 interface User {
@@ -347,6 +349,7 @@ export default function Users() {
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="qs">QS Dept</SelectItem>
                     <SelectItem value="md">Supervisor</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -457,6 +460,7 @@ export default function Users() {
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="qs">QS Dept</SelectItem>
                           <SelectItem value="md">Supervisor</SelectItem>
+                          <SelectItem value="user">User</SelectItem>
                         </SelectContent>
                       </Select>
                       {isRole(['boss']) && (

@@ -30,7 +30,7 @@ const siteLocations = ['Colombo', 'Gampaha', 'Kandy', 'Galle', 'Matara', 'Jaffna
 const expensePurposes = ['Material Purchase', 'Labor Payment', 'Equipment Rental', 'Fuel', 'Transportation', 'Maintenance', 'Supplies', 'Subcontractor Payment', 'Utilities', 'Administrative Costs'];
 const paymentMethods = ['cash', 'bank_transfer', 'cheque', 'petty_cash'];
 const statuses: Array<'pending' | 'approved' | 'rejected' | 'wd_pending' | 'wd_approved' | 'wd_rejected'> = ['pending', 'approved', 'rejected', 'wd_pending', 'wd_approved', 'wd_rejected'];
-const roles: Array<'boss' | 'admin' | 'qs' | 'md' | 'worker'> = ['boss', 'admin', 'qs', 'md', 'worker'];
+const roles: Array<'boss' | 'admin' | 'qs' | 'md' | 'worker' | 'user'> = ['boss', 'admin', 'qs', 'md', 'worker', 'user'];
 
 const generateFullName = () => `${randomElement(firstNames)} ${randomElement(lastNames)}`;
 const generateEmail = (name: string) => `${name.toLowerCase().replace(' ', '.')}${randomInt(1, 999)}@example.com`;

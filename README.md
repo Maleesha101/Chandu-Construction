@@ -400,7 +400,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for complete troubleshooting guide.
 
 - **Documentation**: See `/docs` folder and markdown files
 - **Issues**: Create an issue in the repository
-- **Security**: Report vulnerabilities to security@yourdomain.com
+- **Security**: Report vulnerabilities to security@kodegas.com
 
 ---
 
