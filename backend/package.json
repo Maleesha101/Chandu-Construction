@@ -9,6 +9,8 @@
     "start": "node dist/server.js",
     "seed": "ts-node src/database/seedTestData.ts",
     "test": "jest --coverage",
+    "migrate": "bash scripts/migrate.sh",
+    "migrate:sql": "psql -d $DB_NAME -f src/database/migrations/20260414_add_user_role.sql",
     "test:watch": "jest --watch",
     "test:unit": "jest --testPathPattern=unit",
     "test:integration": "jest --testPathPattern=integration"

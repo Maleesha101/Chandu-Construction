@@ -1,5 +1,5 @@
 -- Create ENUM types
-CREATE TYPE app_role AS ENUM ('boss', 'admin', 'qs', 'md', 'worker');
+CREATE TYPE app_role AS ENUM ('boss', 'admin', 'qs', 'md', 'worker', 'user');
 CREATE TYPE expense_status AS ENUM ('pending', 'approved', 'rejected', 'wd_pending', 'wd_approved', 'wd_rejected');
 CREATE TYPE account_type AS ENUM ('asset', 'liability', 'expense', 'revenue');
 CREATE TYPE account_category AS ENUM ('bank', 'supervisor', 'machine', 'rent', 'general', 'petty_cash', 'user');

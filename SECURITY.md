@@ -225,6 +225,6 @@
 
 ## Contact
 
-For security issues, contact: security@yourdomain.com
+For security issues, contact: security@kodegas.com
 
 **Do not** disclose security vulnerabilities publicly.

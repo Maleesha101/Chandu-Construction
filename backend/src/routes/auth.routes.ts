@@ -22,7 +22,7 @@ router.post('/register',
     return true;
   }),
   body('full_name').notEmpty().withMessage('Full name is required'),
-  body('role').isIn(['boss', 'admin', 'qs', 'md', 'worker']).withMessage('Invalid role'),
+  body('role').isIn(['boss', 'admin', 'qs', 'md', 'worker', 'user']).withMessage('Invalid role'),
   async (req: Request, res: Response) => {
     try {
       const errors = validationResult(req);
