@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,14 @@ const roleLabels: Record<AppRole, string> = {
   user: 'User',
 };
 
+const roleDisplayOrder: Record<AppRole, number> = {
+  boss: 0,
+  md: 1,
+  qs: 3,
+  admin: 2,
+  user: 4,
+};
+
 interface User {
   id: string;
   email: string;
@@ -89,6 +97,17 @@ export default function Users() {
     phone: '',
     role: 'md' as AppRole,
   });
+
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const roleOrderDiff = roleDisplayOrder[a.role] - roleDisplayOrder[b.role];
+      if (roleOrderDiff !== 0) {
+        return roleOrderDiff;
+      }
+
+      return a.full_name.localeCompare(b.full_name);
+    });
+  }, [users]);
 
   useEffect(() => {
     fetchUsers();
@@ -418,7 +437,7 @@ export default function Users() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => {
+              {sortedUsers.map((user) => {
                 const isBossUser = user.role === 'boss';
 
                 return (
