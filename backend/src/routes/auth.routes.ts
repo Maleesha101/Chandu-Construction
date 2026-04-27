@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
-import { query } from '../database/db';
+import { getClient, query } from '../database/db';
 import { AuthTokenPayload } from '../types/index';
 import { config } from '../config/env';
 import { validatePassword } from '../utils/passwordValidation';
@@ -57,15 +57,50 @@ router.post('/register',
       // Hash password
       const password_hash = await bcrypt.hash(password, 10);
 
-      // Create user
-      const result = await query(
-        `INSERT INTO users (email, password_hash, full_name, phone, role)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, email, full_name, phone, role, created_at`,
-        [email, password_hash, full_name, phone || null, role]
-      );
+      const client = await getClient();
+      let user: any;
 
-      const user = result.rows[0];
+      try {
+        await client.query('BEGIN');
+
+        // Create user
+        const result = await client.query(
+          `INSERT INTO users (email, password_hash, full_name, phone, role)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id, email, full_name, phone, role, created_at`,
+          [email, password_hash, full_name, phone || null, role]
+        );
+
+        user = result.rows[0];
+
+        // Create a petty cash ledger account for normal users.
+        if (role === 'user') {
+          const accountCode = `CASH-${user.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+          const accountName = `Petty Cash: ${user.full_name}`;
+
+          await client.query(
+            `INSERT INTO ledger_accounts (
+              account_code,
+              account_name,
+              account_type,
+              account_category,
+              reference_id,
+              balance,
+              active,
+              description
+            ) VALUES ($1, $2, 'asset', 'petty_cash', $3, 0, true, $4)
+            ON CONFLICT (account_code) DO NOTHING`,
+            [accountCode, accountName, user.id, `Auto-created petty cash account for user ${user.full_name}`]
+          );
+        }
+
+        await client.query('COMMIT');
+      } catch (txError) {
+        await client.query('ROLLBACK');
+        throw txError;
+      } finally {
+        (client as any).release();
+      }
 
       // Generate token
       const tokenPayload: AuthTokenPayload = {
