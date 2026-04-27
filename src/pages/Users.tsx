@@ -107,6 +107,12 @@ export default function Users() {
   };
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
+    const targetUser = users.find((user) => user.id === userId);
+    if (targetUser?.role === 'boss') {
+      toast.error('Owner role cannot be edited');
+      return;
+    }
+
     setUpdating(userId);
     try {
       await userApi.updateRole(userId, newRole);
@@ -412,10 +418,13 @@ export default function Users() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {users.map((user) => {
+                const isBossUser = user.role === 'boss';
+
+                return (
                 <TableRow 
                   key={user.id} 
-                  className={`data-table-row ${user.role === 'md' ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                  className={`data-table-row ${isBossUser ? 'opacity-60' : ''} ${user.role === 'md' && !isBossUser ? 'cursor-pointer hover:bg-muted/50' : ''}`}
                   onClick={() => user.role === 'md' && navigate(`/users/${user.id}`)}
                 >
                   <TableCell>
@@ -450,9 +459,9 @@ export default function Users() {
                       <Select
                         value={user.role}
                         onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
-                        disabled={updating === user.id}
+                        disabled={updating === user.id || isBossUser}
                       >
-                        <SelectTrigger className="w-[140px]">
+                        <SelectTrigger className={`w-[140px] ${isBossUser ? 'opacity-70 cursor-not-allowed' : ''}`}>
                           <SelectValue placeholder="Change role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -463,7 +472,7 @@ export default function Users() {
                           <SelectItem value="user">User</SelectItem>
                         </SelectContent>
                       </Select>
-                      {isRole(['boss']) && (
+                      {isRole(['boss']) && !isBossUser && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -479,7 +488,8 @@ export default function Users() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         )}
