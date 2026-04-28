@@ -193,6 +193,22 @@ router.delete('/:id',
       res.json({ message: 'User deleted successfully', user: result.rows[0] });
     } catch (error) {
       console.error('Error deleting user:', error);
+
+      // Surface FK violations as a business error instead of generic 500.
+      if ((error as any)?.code === '23503') {
+        const table = (error as any)?.table;
+
+        if (table === 'approvals') {
+          return res.status(409).json({
+            error: 'Cannot delete this user because they have approval history. Please keep the user for audit records.'
+          });
+        }
+
+        return res.status(409).json({
+          error: 'Cannot delete this user because related records still exist. Remove or reassign dependent records first.'
+        });
+      }
+
       res.status(500).json({ error: 'Failed to delete user' });
     }
   }

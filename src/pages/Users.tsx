@@ -90,6 +90,7 @@ export default function Users() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -515,7 +516,7 @@ export default function Users() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) setConfirmationText(''); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
@@ -541,11 +542,27 @@ export default function Users() {
               </div>
             </div>
           )}
+
+          <div className="space-y-2 my-4">
+            <Label htmlFor="confirm-input">Type 'confirm' to delete:</Label>
+            <Input
+              id="confirm-input"
+              placeholder="confirm"
+              value={confirmationText}
+              onChange={(e) => setConfirmationText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && confirmationText === 'confirm') {
+                  handleDeleteUser();
+                }
+              }}
+            />
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteUser}
-              disabled={deleting}
+              disabled={deleting || confirmationText !== 'confirm'}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
