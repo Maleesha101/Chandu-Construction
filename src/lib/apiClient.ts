@@ -146,6 +146,12 @@ export const bankApi = {
     });
   },
 
+  async delete(id: string) {
+    return apiFetch(`/banks/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   async transfer(transfer: any) {
     return apiFetch('/banks/transfer', {
       method: 'POST',

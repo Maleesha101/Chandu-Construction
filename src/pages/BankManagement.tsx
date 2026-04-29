@@ -101,9 +101,12 @@ export default function BankManagement() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [chequeDialogOpen, setChequeDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedBank, setSelectedBank] = useState<BankAccount | null>(null);
+  const [bankToDelete, setBankToDelete] = useState<BankAccount | null>(null);
   const [viewingAccount, setViewingAccount] = useState<BankAccount | null>(null);
   const [accountTransactions, setAccountTransactions] = useState<BankTransfer[]>([]);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -128,6 +131,27 @@ export default function BankManagement() {
     description: '',
     deposit_to_account_id: '',
   });
+
+  const handleDeleteBank = async () => {
+    if (!bankToDelete || deleteConfirmationText !== 'CONFIRM') {
+      toast.error('Type CONFIRM to deactivate the bank account');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await bankApi.delete(bankToDelete.id);
+      toast.success('Bank account deactivated successfully');
+      setBankToDelete(null);
+      setDeleteConfirmationText('');
+      fetchBanks();
+    } catch (error) {
+      console.error('Error deleting bank account:', error);
+      toast.error('Failed to deactivate bank account');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     fetchBanks();
@@ -203,7 +227,7 @@ export default function BankManagement() {
         currency: 'LKR',
       });
       fetchBanks();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding bank:', error);
       toast.error('Failed to add bank account');
     } finally {
@@ -239,7 +263,7 @@ export default function BankManagement() {
         currency: 'LKR',
       });
       fetchBanks();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating bank:', error);
       toast.error('Failed to update bank account');
     } finally {
@@ -282,9 +306,9 @@ export default function BankManagement() {
       });
       fetchBanks();
       fetchTransfers();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error transferring:', error);
-      toast.error(error.message || 'Failed to complete transfer');
+      toast.error(error instanceof Error ? error.message : 'Failed to complete transfer');
     } finally {
       setSubmitting(false);
     }
@@ -326,7 +350,7 @@ export default function BankManagement() {
       fetchCheques();
       fetchTransfers();
       fetchBanks();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error adding cheque:', error);
       toast.error('Failed to add cheque');
     } finally {
@@ -949,8 +973,15 @@ export default function BankManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className={bank.active ? 'text-destructive hover:text-destructive hover:bg-destructive/10' : ''}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (bank.active) {
+                                setBankToDelete(bank);
+                                setDeleteConfirmationText('');
+                                return;
+                              }
+
                               toggleActive(bank);
                             }}
                           >
@@ -1063,6 +1094,60 @@ export default function BankManagement() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!bankToDelete} onOpenChange={(open) => {
+        if (!open) {
+          setBankToDelete(null);
+          setDeleteConfirmationText('');
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deactivate Bank Account</DialogTitle>
+            <DialogDescription>
+              This will remove the bank account from active lists. Type CONFIRM to continue.
+            </DialogDescription>
+          </DialogHeader>
+          {bankToDelete && (
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <p className="text-sm"><span className="text-muted-foreground">Name:</span> {bankToDelete.name}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Bank:</span> {bankToDelete.bank_name}</p>
+              <p className="text-sm"><span className="text-muted-foreground">Account:</span> {bankToDelete.account_number || '-'}</p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="delete-confirmation">Type CONFIRM to deactivate</Label>
+            <Input
+              id="delete-confirmation"
+              value={deleteConfirmationText}
+              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+              placeholder="CONFIRM"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setBankToDelete(null);
+                setDeleteConfirmationText('');
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteBank}
+              disabled={deleting || deleteConfirmationText !== 'CONFIRM'}
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Deactivate Bank Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
