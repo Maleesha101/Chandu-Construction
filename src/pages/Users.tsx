@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,14 @@ const roleLabels: Record<AppRole, string> = {
   user: 'User',
 };
 
+const roleDisplayOrder: Record<AppRole, number> = {
+  boss: 0,
+  md: 1,
+  qs: 3,
+  admin: 2,
+  user: 4,
+};
+
 interface User {
   id: string;
   email: string;
@@ -82,6 +90,7 @@ export default function Users() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmationText, setConfirmationText] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -89,6 +98,17 @@ export default function Users() {
     phone: '',
     role: 'md' as AppRole,
   });
+
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      const roleOrderDiff = roleDisplayOrder[a.role] - roleDisplayOrder[b.role];
+      if (roleOrderDiff !== 0) {
+        return roleOrderDiff;
+      }
+
+      return a.full_name.localeCompare(b.full_name);
+    });
+  }, [users]);
 
   useEffect(() => {
     fetchUsers();
@@ -107,6 +127,12 @@ export default function Users() {
   };
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
+    const targetUser = users.find((user) => user.id === userId);
+    if (targetUser?.role === 'boss') {
+      toast.error('Owner role cannot be edited');
+      return;
+    }
+
     setUpdating(userId);
     try {
       await userApi.updateRole(userId, newRole);
@@ -412,10 +438,13 @@ export default function Users() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {sortedUsers.map((user) => {
+                const isBossUser = user.role === 'boss';
+
+                return (
                 <TableRow 
                   key={user.id} 
-                  className={`data-table-row ${user.role === 'md' ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                  className={`data-table-row ${isBossUser ? 'opacity-60' : ''} ${user.role === 'md' && !isBossUser ? 'cursor-pointer hover:bg-muted/50' : ''}`}
                   onClick={() => user.role === 'md' && navigate(`/users/${user.id}`)}
                 >
                   <TableCell>
@@ -450,9 +479,9 @@ export default function Users() {
                       <Select
                         value={user.role}
                         onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
-                        disabled={updating === user.id}
+                        disabled={updating === user.id || isBossUser}
                       >
-                        <SelectTrigger className="w-[140px]">
+                        <SelectTrigger className={`w-[140px] ${isBossUser ? 'opacity-70 cursor-not-allowed' : ''}`}>
                           <SelectValue placeholder="Change role" />
                         </SelectTrigger>
                         <SelectContent>
@@ -463,7 +492,7 @@ export default function Users() {
                           <SelectItem value="user">User</SelectItem>
                         </SelectContent>
                       </Select>
-                      {isRole(['boss']) && (
+                      {isRole(['boss']) && !isBossUser && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -479,14 +508,15 @@ export default function Users() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         )}
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) setConfirmationText(''); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
@@ -512,11 +542,27 @@ export default function Users() {
               </div>
             </div>
           )}
+
+          <div className="space-y-2 my-4">
+            <Label htmlFor="confirm-input">Type 'confirm' to delete:</Label>
+            <Input
+              id="confirm-input"
+              placeholder="confirm"
+              value={confirmationText}
+              onChange={(e) => setConfirmationText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && confirmationText === 'confirm') {
+                  handleDeleteUser();
+                }
+              }}
+            />
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteUser}
-              disabled={deleting}
+              disabled={deleting || confirmationText !== 'confirm'}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

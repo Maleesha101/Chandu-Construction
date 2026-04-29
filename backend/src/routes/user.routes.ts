@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { query } from '../database/db';
+import { getClient, query } from '../database/db';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { validatePassword, getPasswordErrorMessage } from '../utils/passwordValidation';
 import { passwordChangeLimiter } from '../middleware/rateLimiter';
@@ -53,7 +53,7 @@ router.get('/transaction-users',
       const result = await query(
         `SELECT id, email, full_name, phone, role, active, created_at
         FROM users
-        WHERE role IN ('boss', 'admin', 'md', 'qs') AND active = true
+        WHERE role IN ('boss', 'admin', 'md', 'qs', 'user') AND active = true
         ORDER BY full_name`
       );
       res.json(result.rows);
@@ -138,10 +138,53 @@ router.delete('/:id',
         return res.status(400).json({ error: 'Cannot delete your own account' });
       }
 
-      const result = await query(
-        'DELETE FROM users WHERE id = $1 RETURNING id, email, full_name',
-        [id]
-      );
+      const client = await getClient();
+      let result;
+
+      try {
+        await client.query('BEGIN');
+
+        // Remove ledger entries and accounts tied to this user.
+        const linkedAccountsResult = await client.query(
+          `SELECT id
+           FROM ledger_accounts
+           WHERE reference_id = $1
+             AND account_category IN ('petty_cash', 'user')`,
+          [id]
+        );
+
+        const linkedAccountIds = linkedAccountsResult.rows.map((row: { id: string }) => row.id);
+
+        if (linkedAccountIds.length > 0) {
+          await client.query(
+            'DELETE FROM ledger_entries WHERE account_id = ANY($1::uuid[])',
+            [linkedAccountIds]
+          );
+
+          await client.query(
+            'DELETE FROM ledger_accounts WHERE id = ANY($1::uuid[])',
+            [linkedAccountIds]
+          );
+        }
+
+        // Remove created_by linkage to allow user deletion.
+        await client.query(
+          'UPDATE ledger_entries SET created_by = NULL WHERE created_by = $1',
+          [id]
+        );
+
+        result = await client.query(
+          'DELETE FROM users WHERE id = $1 RETURNING id, email, full_name',
+          [id]
+        );
+
+        await client.query('COMMIT');
+      } catch (txError) {
+        await client.query('ROLLBACK');
+        throw txError;
+      } finally {
+        (client as any).release();
+      }
 
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'User not found' });
@@ -150,6 +193,22 @@ router.delete('/:id',
       res.json({ message: 'User deleted successfully', user: result.rows[0] });
     } catch (error) {
       console.error('Error deleting user:', error);
+
+      // Surface FK violations as a business error instead of generic 500.
+      if ((error as any)?.code === '23503') {
+        const table = (error as any)?.table;
+
+        if (table === 'approvals') {
+          return res.status(409).json({
+            error: 'Cannot delete this user because they have approval history. Please keep the user for audit records.'
+          });
+        }
+
+        return res.status(409).json({
+          error: 'Cannot delete this user because related records still exist. Remove or reassign dependent records first.'
+        });
+      }
+
       res.status(500).json({ error: 'Failed to delete user' });
     }
   }

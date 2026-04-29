@@ -23,7 +23,7 @@ POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-  "email": "Thivina1@gmail.com",
+  "email": "Thivina@gmail.com",
   "password": "Thivina@123",
   "full_name": "Thivina Chandunu",
   "phone": "0771234567",

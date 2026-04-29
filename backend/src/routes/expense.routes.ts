@@ -14,7 +14,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
-            md.name as from_person_name,
+            e.qs_notes as from_person_name,
             s.name as site_name,
             s.code as site_code,
             b.name as bank_name,
@@ -79,7 +79,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
-            md.name as from_person_name,
+            e.qs_notes as from_person_name,
             s.name as site_name,
             b.name as bank_name,
             md.name as md_name
@@ -437,16 +437,72 @@ router.delete('/:id',
     try {
       const { id } = req.params;
 
-      const result = await query(
-        'DELETE FROM expense_records WHERE id = $1 RETURNING id',
-        [id]
-      );
+      await query('BEGIN');
 
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Expense not found' });
+      try {
+        const expenseResult = await query(
+          `SELECT id, amount, from_bank_account_id, payment_method
+           FROM expense_records
+           WHERE id = $1
+           FOR UPDATE`,
+          [id]
+        );
+
+        if (expenseResult.rows.length === 0) {
+          await query('ROLLBACK');
+          return res.status(404).json({ error: 'Expense not found' });
+        }
+
+        const expense = expenseResult.rows[0];
+        const expenseAmount = Number(expense.amount);
+
+        const accountResult = await query(
+          `SELECT DISTINCT account_id
+           FROM ledger_entries
+           WHERE expense_record_id = $1`,
+          [id]
+        );
+
+        if (
+          expense.from_bank_account_id &&
+          ['bank_account', 'bank', 'bank_transfer'].includes(expense.payment_method)
+        ) {
+          await query(
+            'UPDATE bank_accounts SET balance = balance + $1 WHERE id = $2',
+            [expenseAmount, expense.from_bank_account_id]
+          );
+        }
+
+        const result = await query(
+          'DELETE FROM expense_records WHERE id = $1 RETURNING id',
+          [id]
+        );
+
+        if (accountResult.rows.length > 0) {
+          await query(
+            `UPDATE ledger_accounts la
+             SET balance = COALESCE((
+               SELECT SUM(COALESCE(le.debit, 0) - COALESCE(le.credit, 0))
+               FROM ledger_entries le
+               WHERE le.account_id = la.id
+             ), 0),
+                 updated_at = NOW()
+             WHERE la.id = ANY($1::uuid[])`,
+            [accountResult.rows.map((row) => row.account_id)]
+          );
+        }
+
+        await query('COMMIT');
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({ error: 'Expense not found' });
+        }
+
+        res.json({ message: 'Expense deleted successfully' });
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
       }
-
-      res.json({ message: 'Expense deleted successfully' });
     } catch (error) {
       console.error('Error deleting expense:', error);
       res.status(500).json({ error: 'Failed to delete expense' });

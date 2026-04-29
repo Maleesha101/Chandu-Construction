@@ -170,6 +170,51 @@ router.put('/:id',
   }
 );
 
+// Delete bank account (soft delete)
+router.delete('/:id',
+  authenticate,
+  authorize('boss'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      await query('BEGIN');
+
+      try {
+        const result = await query(
+          `UPDATE bank_accounts
+           SET active = false
+           WHERE id = $1 AND active = true
+           RETURNING *`,
+          [id]
+        );
+
+        if (result.rows.length === 0) {
+          await query('ROLLBACK');
+          return res.status(404).json({ error: 'Bank account not found' });
+        }
+
+        await query(
+          `UPDATE ledger_accounts
+           SET active = false
+           WHERE reference_id = $1 AND account_category = 'bank'`,
+          [id]
+        );
+
+        await query('COMMIT');
+
+        res.json({ message: 'Bank account deleted successfully', bankAccount: result.rows[0] });
+      } catch (error) {
+        await query('ROLLBACK');
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error deleting bank account:', error);
+      res.status(500).json({ error: 'Failed to delete bank account' });
+    }
+  }
+);
+
 // Transfer between accounts
 router.post('/transfer',
   authenticate,
