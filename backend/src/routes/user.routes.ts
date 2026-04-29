@@ -53,7 +53,7 @@ router.get('/transaction-users',
       const result = await query(
         `SELECT id, email, full_name, phone, role, active, created_at
         FROM users
-        WHERE role IN ('boss', 'admin', 'md', 'qs') AND active = true
+        WHERE role IN ('boss', 'admin', 'md', 'qs', 'user') AND active = true
         ORDER BY full_name`
       );
       res.json(result.rows);

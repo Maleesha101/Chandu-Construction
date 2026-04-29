@@ -102,7 +102,7 @@ export default function NewExpense() {
     email: '',                                                                                                                                              
     password: '',
     phone: '',
-    role: 'md' as 'admin' | 'md' | 'worker',
+    role: 'md' as 'admin' | 'md' | 'user',
   });
 
   // Dialog state for adding new beneficiary
@@ -414,7 +414,7 @@ export default function NewExpense() {
                     {transactionUsers.map((user) => (
                       <SelectItem key={user.id} value={user.full_name}>
                         {user.full_name}
-                      </SelectItem>
+                      </SelectItem> 
                     ))}
                     {transactionUsers.length === 0 && (
                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
