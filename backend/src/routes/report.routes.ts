@@ -135,8 +135,14 @@ router.get('/summary', authenticate, async (req: AuthRequest, res: Response) => 
 // Get site-specific report
 router.get('/by-site', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { period = 'this-week' } = req.query;
-    const { startDate, endDate } = getDateRange(period as string);
+    const { period = 'this-week', startDate: customStartDate, endDate: customEndDate } = req.query;
+    const hasCustomRange = Boolean(customStartDate && customEndDate);
+    const { startDate, endDate } = hasCustomRange
+      ? {
+          startDate: new Date(`${customStartDate as string}T00:00:00`),
+          endDate: new Date(`${customEndDate as string}T23:59:59`),
+        }
+      : getDateRange(period as string);
 
     const result = await query(
       `SELECT 
@@ -160,7 +166,7 @@ router.get('/by-site', authenticate, async (req: AuthRequest, res: Response) => 
     );
 
     res.json({
-      period,
+      period: hasCustomRange ? 'custom' : period,
       dateRange: { startDate, endDate },
       sites: result.rows,
     });

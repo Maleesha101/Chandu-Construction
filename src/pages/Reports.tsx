@@ -94,6 +94,8 @@ function formatCurrency(amount: number): string {
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [period, setPeriod] = useState('this-week');
+  const [siteStartDate, setSiteStartDate] = useState('');
+  const [siteEndDate, setSiteEndDate] = useState('');
   const [loading, setLoading] = useState(false);
   
   // Report data states
@@ -108,7 +110,7 @@ export default function Reports() {
     if (selectedReport) {
       fetchReportData();
     }
-  }, [selectedReport, period]);
+  }, [selectedReport, period, siteStartDate, siteEndDate]);
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -119,7 +121,11 @@ export default function Reports() {
           setSummary(summaryData);
           break;
         case 'site-expenses':
-          const siteData = await reportApi.getBySite(period);
+          const siteData = await reportApi.getBySite(
+            siteStartDate && siteEndDate
+              ? { startDate: siteStartDate, endDate: siteEndDate }
+              : { period }
+          );
           setSiteReport(siteData);
           break;
         case 'md-expenses':
@@ -525,7 +531,7 @@ export default function Reports() {
   return (
     <DashboardLayout title="Reports" description="Generate and export financial reports">
       {/* Period Selector */}
-      {selectedReport && selectedReport !== 'weekly-comparison' && (
+      {selectedReport && selectedReport !== 'weekly-comparison' && selectedReport !== 'site-expenses' && (
         <div className="flex items-center gap-4 mb-8">
           <Calendar className="h-5 w-5 text-muted-foreground" />
           <Select value={period} onValueChange={setPeriod}>
@@ -540,6 +546,41 @@ export default function Reports() {
               <SelectItem value="last-month">Last Month</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {selectedReport === 'site-expenses' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="space-y-2">
+            <Label htmlFor="site-start-date">Start Date</Label>
+            <Input
+              id="site-start-date"
+              type="date"
+              value={siteStartDate}
+              onChange={(e) => setSiteStartDate(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="site-end-date">End Date</Label>
+            <Input
+              id="site-end-date"
+              type="date"
+              value={siteEndDate}
+              onChange={(e) => setSiteEndDate(e.target.value)}
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSiteStartDate('');
+                setSiteEndDate('');
+              }}
+            >
+              Clear Range
+            </Button>
+          </div>
         </div>
       )}
 

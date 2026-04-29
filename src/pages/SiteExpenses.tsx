@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Table,
     TableBody,
@@ -25,6 +26,7 @@ import { ArrowLeft, Loader2, Receipt, Building2, MapPin, Calendar } from 'lucide
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
+import { Label } from '@/components/ui/label';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-LK', {
@@ -48,6 +50,8 @@ export default function SiteExpenses() {
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   useEffect(() => {
     async function fetchData() {
@@ -57,9 +61,28 @@ export default function SiteExpenses() {
       }
 
       try {
+        const now = new Date();
+        let startDate: string | undefined;
+        let endDate: string | undefined;
+
+        if (dateFilter === 'week') {
+          startDate = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+          endDate = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        } else if (dateFilter === 'month') {
+          startDate = format(startOfMonth(now), 'yyyy-MM-dd');
+          endDate = format(endOfMonth(now), 'yyyy-MM-dd');
+        } else if (dateFilter === 'custom' && customStartDate && customEndDate) {
+          startDate = customStartDate;
+          endDate = customEndDate;
+        }
+
         const [sitesData, expensesData] = await Promise.all([
           siteApi.getAll(),
-          expenseApi.getAll({ site_id: siteId }),
+          expenseApi.getAll({
+            site_id: siteId,
+            ...(startDate ? { start_date: startDate } : {}),
+            ...(endDate ? { end_date: endDate } : {}),
+          }),
         ]);
 
         const foundSite = sitesData.find((s: Site) => s.id === siteId);
@@ -81,7 +104,7 @@ export default function SiteExpenses() {
     }
 
     fetchData();
-  }, [siteId, navigate]);
+  }, [siteId, navigate, dateFilter, customStartDate, customEndDate]);
 
   if (loading) {
     return (
@@ -211,7 +234,7 @@ export default function SiteExpenses() {
             <h3 className="text-lg font-semibold">Expense Breakdown</h3>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
+              <Select value={dateFilter} onValueChange={(value) => setDateFilter(value as 'all' | 'week' | 'month' | 'custom')}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Select period" />
                 </SelectTrigger>
@@ -219,10 +242,47 @@ export default function SiteExpenses() {
                   <SelectItem value="all">All Time</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {dateFilter === 'custom' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="custom-start-date">Start Date</Label>
+                <Input
+                  id="custom-start-date"
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom-end-date">End Date</Label>
+                <Input
+                  id="custom-end-date"
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCustomStartDate('');
+                    setCustomEndDate('');
+                    setDateFilter('all');
+                  }}
+                >
+                  Clear Range
+                </Button>
+              </div>
+            </div>
+          )}
 
           {pieChartData.length > 0 ? (
             <div className="h-96">
@@ -241,7 +301,7 @@ export default function SiteExpenses() {
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                  <Tooltip formatter={(value: string | number) => formatCurrency(Number(value))} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
