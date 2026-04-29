@@ -14,7 +14,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
-            md.name as from_person_name,
+            e.qs_notes as from_person_name,
             s.name as site_name,
             s.code as site_code,
             b.name as bank_name,
@@ -79,7 +79,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     let queryText = `
       SELECT e.*, 
             u.full_name as entered_by_name,
-            md.name as from_person_name,
+            e.qs_notes as from_person_name,
             s.name as site_name,
             b.name as bank_name,
             md.name as md_name
