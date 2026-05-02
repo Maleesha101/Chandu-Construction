@@ -41,7 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppRole } from '@/lib/types';
-import { Users as UsersIcon, Loader2, Shield, Mail, UserPlus, Key, Copy, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Users as UsersIcon, Loader2, Shield, Mail, UserPlus, Key, Copy, Eye, EyeOff, Trash2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { userApi } from '@/lib/apiClient';
 import { toast } from 'sonner';
@@ -91,6 +91,9 @@ export default function Users() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmationText, setConfirmationText] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'role' | 'name' | 'email' | 'date'>('role');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -99,16 +102,46 @@ export default function Users() {
     role: 'md' as AppRole,
   });
 
-  const sortedUsers = useMemo(() => {
-    return [...users].sort((a, b) => {
-      const roleOrderDiff = roleDisplayOrder[a.role] - roleDisplayOrder[b.role];
-      if (roleOrderDiff !== 0) {
-        return roleOrderDiff;
-      }
+  const filteredAndSortedUsers = useMemo(() => {
+    let result = [...users];
 
-      return a.full_name.localeCompare(b.full_name);
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.full_name.toLowerCase().includes(query) ||
+          u.email.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by role
+    if (roleFilter !== 'all') {
+      result = result.filter((u) => u.role === roleFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.full_name.localeCompare(b.full_name);
+        case 'email':
+          return a.email.localeCompare(b.email);
+        case 'date':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'role':
+        default: {
+          const roleOrderDiff = roleDisplayOrder[a.role] - roleDisplayOrder[b.role];
+          if (roleOrderDiff !== 0) {
+            return roleOrderDiff;
+          }
+          return a.full_name.localeCompare(b.full_name);
+        }
+      }
     });
-  }, [users]);
+
+    return result;
+  }, [users, searchQuery, roleFilter, sortBy]);
 
   useEffect(() => {
     fetchUsers();
@@ -399,6 +432,72 @@ export default function Users() {
         </Dialog>
       </div>
 
+      {/* Search, Filter, and Sort Controls */}
+      <div className="stat-card mb-6 space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex-1">
+            <Label htmlFor="role-filter" className="text-xs text-muted-foreground mb-2 block">
+              Filter by Role
+            </Label>
+            <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as AppRole | 'all')}>
+              <SelectTrigger id="role-filter">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="boss">Owner</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="qs">QS Dept</SelectItem>
+                <SelectItem value="md">Supervisor</SelectItem>
+                <SelectItem value="user">User</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1">
+            <Label htmlFor="sort-by" className="text-xs text-muted-foreground mb-2 block">
+              Sort by
+            </Label>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as 'role' | 'name' | 'email' | 'date')}>
+              <SelectTrigger id="sort-by">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="role">Role (Default)</SelectItem>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="date">Date Joined (Newest)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {(searchQuery || roleFilter !== 'all') && (
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setRoleFilter('all');
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {filteredAndSortedUsers.length} of {users.length} user{users.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {Object.entries(roleLabels).map(([role, label]) => {
@@ -426,6 +525,14 @@ export default function Users() {
               Users will appear here once they sign up.
             </p>
           </div>
+        ) : filteredAndSortedUsers.length === 0 ? (
+          <div className="p-12 text-center">
+            <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No users found</h3>
+            <p className="text-muted-foreground">
+              Try adjusting your search or filter criteria.
+            </p>
+          </div>
         ) : (
           <Table>
             <TableHeader>
@@ -438,7 +545,7 @@ export default function Users() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedUsers.map((user) => {
+              {filteredAndSortedUsers.map((user) => {
                 const isBossUser = user.role === 'boss';
 
                 return (
