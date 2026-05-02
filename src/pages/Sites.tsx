@@ -202,42 +202,6 @@ export default function Sites() {
         )}
       </div>
 
-      {/* Date Range Filter */}
-      <div className="stat-card mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div className="space-y-2">
-            <Label htmlFor="sites-start-date">Start Date</Label>
-            <Input
-              id="sites-start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sites-end-date">End Date</Label>
-            <Input
-              id="sites-end-date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setStartDate('');
-                setEndDate('');
-              }}
-            >
-              Clear Range
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Sites Table */}
       <div className="stat-card !p-0 overflow-hidden">
         {loading ? (

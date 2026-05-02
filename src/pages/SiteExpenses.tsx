@@ -22,11 +22,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { expenseApi, siteApi } from '@/lib/apiClient';
 import { ExpenseRecord, Site } from '@/lib/types';
-import { ArrowLeft, Loader2, Receipt, Building2, MapPin, Calendar } from 'lucide-react';
+import { ArrowLeft, Loader2, Receipt, Building2, MapPin, Calendar, FileDown } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import { Label } from '@/components/ui/label';
+import { exportToPDF, exportToExcel } from '@/lib/exportUtils';
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-LK', {
@@ -52,6 +53,7 @@ export default function SiteExpenses() {
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'custom'>('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -171,6 +173,44 @@ export default function SiteExpenses() {
 
   const pieChartData = getPieChartData();
 
+  const handleExportPDF = async () => {
+    try {
+      setExporting('pdf');
+      exportToPDF({
+        site,
+        expenses: filteredExpenses,
+        dateFilter,
+        customStartDate,
+        customEndDate,
+      });
+      toast.success('PDF exported successfully');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setExporting('excel');
+      exportToExcel({
+        site,
+        expenses: filteredExpenses,
+        dateFilter,
+        customStartDate,
+        customEndDate,
+      });
+      toast.success('Excel file exported successfully');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export Excel file');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return (
     <DashboardLayout
       title={site.name}
@@ -230,7 +270,7 @@ export default function SiteExpenses() {
       {/* Date Filter and Pie Chart */}
       <div className="stat-card mb-6">
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <h3 className="text-lg font-semibold">Expense Breakdown</h3>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -245,6 +285,28 @@ export default function SiteExpenses() {
                   <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPDF}
+                disabled={filteredExpenses.length === 0 || exporting === 'pdf'}
+                className="gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                {exporting === 'pdf' ? 'Exporting...' : 'Export PDF'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                disabled={filteredExpenses.length === 0 || exporting === 'excel'}
+                className="gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                {exporting === 'excel' ? 'Exporting...' : 'Export Excel'}
+              </Button>
             </div>
           </div>
 
