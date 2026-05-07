@@ -36,6 +36,8 @@ export default function Sites() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -77,9 +79,10 @@ export default function Sites() {
       setDialogOpen(false);
       setFormData({ name: '', location: '' });
       fetchSites();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating site:', error);
-      if (error.message?.includes('already exists') || error.message?.includes('23505')) {
+      const message = error instanceof Error ? error.message : '';
+      if (message.includes('already exists') || message.includes('23505')) {
         toast.error('A site with this code already exists');
       } else {
         toast.error('Failed to create site');
@@ -101,6 +104,30 @@ export default function Sites() {
     }
   };
 
+  const filteredSites = sites.filter((site) => {
+    if (!startDate && !endDate) {
+      return true;
+    }
+
+    const siteDate = new Date(site.created_at);
+
+    if (startDate) {
+      const fromDate = new Date(`${startDate}T00:00:00`);
+      if (siteDate < fromDate) {
+        return false;
+      }
+    }
+
+    if (endDate) {
+      const toDate = new Date(`${endDate}T23:59:59`);
+      if (siteDate > toDate) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   return (
     <DashboardLayout title="Construction Sites" description="Manage your construction site locations">
       {/* Header Actions */}
@@ -110,6 +137,21 @@ export default function Sites() {
             <Building2 className="h-3 w-3" />
             {sites.filter((s) => s.active).length} Active Sites
           </Badge>
+          {(startDate || endDate) && (
+            <Badge variant="secondary" className="gap-1">
+              Filter: {startDate || '...'} to {endDate || '...'}
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="ml-1 hover:text-destructive"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
         </div>
         {isRole(['boss', 'admin']) && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -166,14 +208,16 @@ export default function Sites() {
           <div className="p-12 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
           </div>
-        ) : sites.length === 0 ? (
+        ) : filteredSites.length === 0 ? (
           <div className="p-12 text-center">
             <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">No sites yet</h3>
             <p className="text-muted-foreground mb-4">
-              Create your first construction site to start tracking expenses.
+              {sites.length === 0
+                ? 'Create your first construction site to start tracking expenses.'
+                : 'No sites match the selected date range.'}
             </p>
-            {isRole(['boss', 'admin']) && (
+            {sites.length === 0 && isRole(['boss', 'admin']) && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Site
@@ -193,7 +237,7 @@ export default function Sites() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sites.map((site) => (
+              {filteredSites.map((site) => (
                 <TableRow 
                   key={site.id} 
                   className="data-table-row cursor-pointer hover:bg-muted/50"

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -100,6 +101,10 @@ export default function Ledger() {
   const [searchTerm, setSearchTerm] = useState('');
   const [transactionSearch, setTransactionSearch] = useState('');
   const [transactionPeriod, setTransactionPeriod] = useState('all');
+  const [transactionStartDate, setTransactionStartDate] = useState('');
+  const [transactionEndDate, setTransactionEndDate] = useState('');
+  const [breakdownStartDate, setBreakdownStartDate] = useState('');
+  const [breakdownEndDate, setBreakdownEndDate] = useState('');
 
   useEffect(() => {
     fetchAccounts();
@@ -119,9 +124,9 @@ export default function Ledger() {
     }
   };
 
-  const fetchExpenseBreakdown = async () => {
+  const fetchExpenseBreakdown = async (startDate?: string, endDate?: string) => {
     try {
-      const data = await ledgerApi.getExpenseBreakdown();
+      const data = await ledgerApi.getExpenseBreakdown({ startDate, endDate });
       setExpenseBreakdown(data || []);
     } catch (error) {
       console.error('Error fetching expense breakdown:', error);
@@ -304,10 +309,14 @@ export default function Ledger() {
     });
   };
 
-  const fetchAccountEntries = async (accountId: string) => {
+  const fetchAccountEntries = async (accountId: string, startDate?: string, endDate?: string) => {
     try {
       setLoadingEntries(true);
-      const data = await ledgerApi.getAccountEntries(accountId, { limit: 100 });
+      const data = await ledgerApi.getAccountEntries(accountId, {
+        limit: 100,
+        startDate,
+        endDate,
+      });
       setEntries(data || []);
     } catch (error) {
       console.error('Error fetching account entries:', error);
@@ -327,6 +336,8 @@ export default function Ledger() {
     setEntries([]);
     setTransactionSearch('');
     setTransactionPeriod('all');
+    setTransactionStartDate('');
+    setTransactionEndDate('');
   };
 
   // Filter transactions based on search and time period
@@ -397,6 +408,25 @@ export default function Ledger() {
     }
 
     return filtered;
+  };
+
+  const applyTransactionDateRange = async () => {
+    if (!selectedAccount) return;
+    if (!transactionStartDate || !transactionEndDate) {
+      toast.error('Select both start and end dates');
+      return;
+    }
+
+    await fetchAccountEntries(selectedAccount.id, transactionStartDate, transactionEndDate);
+  };
+
+  const applyBreakdownDateRange = async () => {
+    if (!breakdownStartDate || !breakdownEndDate) {
+      toast.error('Select both start and end dates');
+      return;
+    }
+
+    await fetchExpenseBreakdown(breakdownStartDate, breakdownEndDate);
   };
 
   const filteredAccounts = accounts.filter(
@@ -582,9 +612,48 @@ export default function Ledger() {
                   </Select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="transaction-start-date">Start Date</Label>
+                  <Input
+                    id="transaction-start-date"
+                    type="date"
+                    value={transactionStartDate}
+                    onChange={(e) => setTransactionStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="transaction-end-date">End Date</Label>
+                  <Input
+                    id="transaction-end-date"
+                    type="date"
+                    value={transactionEndDate}
+                    onChange={(e) => setTransactionEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button type="button" variant="outline" onClick={applyTransactionDateRange}>
+                    Apply Range
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setTransactionStartDate('');
+                      setTransactionEndDate('');
+                      if (selectedAccount) {
+                        fetchAccountEntries(selectedAccount.id);
+                      }
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
               
               {/* Active Filters Display */}
-              {(transactionSearch || transactionPeriod !== 'all') && (
+              {(transactionSearch || transactionPeriod !== 'all' || transactionStartDate || transactionEndDate) && (
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm text-muted-foreground">Active filters:</span>
                   {transactionSearch && (
@@ -609,12 +678,31 @@ export default function Ledger() {
                       </button>
                     </Badge>
                   )}
+                  {(transactionStartDate || transactionEndDate) && (
+                    <Badge variant="secondary" className="gap-1">
+                      Range: {transactionStartDate || '...'} to {transactionEndDate || '...'}
+                      <button
+                        onClick={() => {
+                          setTransactionStartDate('');
+                          setTransactionEndDate('');
+                          if (selectedAccount) {
+                            fetchAccountEntries(selectedAccount.id);
+                          }
+                        }}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
                       setTransactionSearch('');
                       setTransactionPeriod('all');
+                      setTransactionStartDate('');
+                      setTransactionEndDate('');
                     }}
                     className="h-6 text-xs"
                   >
@@ -1048,6 +1136,42 @@ export default function Ledger() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="breakdown-start-date">Start Date</Label>
+                  <Input
+                    id="breakdown-start-date"
+                    type="date"
+                    value={breakdownStartDate}
+                    onChange={(e) => setBreakdownStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="breakdown-end-date">End Date</Label>
+                  <Input
+                    id="breakdown-end-date"
+                    type="date"
+                    value={breakdownEndDate}
+                    onChange={(e) => setBreakdownEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button type="button" variant="outline" onClick={applyBreakdownDateRange}>
+                    Apply Range
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setBreakdownStartDate('');
+                      setBreakdownEndDate('');
+                      fetchExpenseBreakdown();
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>

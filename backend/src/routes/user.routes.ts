@@ -44,8 +44,7 @@ router.get('/supervisors',
     }
   }
 );
-
-// Get all users who can make transactions (boss, admin, md, qs)
+                                                                                                                                                                                                                                                                                                                                                  // Get all users who can make transactions (boss, admin, md, qs)
 router.get('/transaction-users',
   authenticate,
   async (req: AuthRequest, res: Response) => {

@@ -333,8 +333,14 @@ export const reportApi = {
     return apiFetch(`/reports/summary?period=${period}`);
   },
 
-  async getBySite(period: string = 'this-week') {
-    return apiFetch(`/reports/by-site?period=${period}`);
+  async getBySite(params?: { period?: string; startDate?: string; endDate?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.period) queryParams.append('period', params.period);
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+    const query = queryParams.toString();
+    return apiFetch(`/reports/by-site${query ? `?${query}` : ''}`);
   },
 
   async getByMD(period: string = 'this-week') {
