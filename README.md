@@ -4,10 +4,6 @@ A comprehensive expense and cash flow management system for construction sites w
 
 ## 📸 App Walkthrough
 
-### Login
-
-![Login Screen](docs/screenshots/01-login.png)
-
 ### Dashboard
 
 ![Dashboard Overview](docs/screenshots/02-dashboard.png)
@@ -30,7 +26,7 @@ A comprehensive expense and cash flow management system for construction sites w
 
 ### Site Management
 
-![User Management](docs/screenshots/06-sites.png)
+![User Management](docs/screenshots/07-sites.png)
 
 ## 🎯 Production Readiness Status
 
